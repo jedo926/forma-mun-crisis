@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>About the Chairs · FORMA MUN Crisis Division</title>
+  <meta name="description" content="FORMA MUN Crisis Division — crisis committee portal.">
+  <meta name="theme-color" content="#070812">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/home.css">
+  <link rel="stylesheet" href="css/game.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/fx.css">
+</head>
+<body data-page="chairs">
+  <!-- Header, nav and status bar are rendered by js/ui/layout.js from the site map in js/core/config.js -->
+  <div data-slot="header"></div>
+  <noscript class="nav-fallback"><nav class="nav-plain" aria-label="Main"><a href="index.html">HOME</a> · <a href="briefing.html">BRIEFING</a> · <a href="characters.html">CHARACTERS</a> · <a href="factions.html">FACTIONS</a> · <a href="timeline.html">TIMELINE</a> · <a href="updates.html">UPDATES</a> · <a href="locations.html">LOCATIONS</a> · <a href="rules.html">RULES</a> · <a href="intel.html">INTEL</a> · <a href="chairs.html">CHAIRS</a></nav></noscript>
+
+  <main id="main" class="screen">
+    <header class="screen-head">
+      <div>
+        <p class="kicker">STAGE 09</p>
+        <h1 class="glitch">ABOUT THE CHAIRS</h1>
+        <p class="lead">Your chairs for the Crisis Division.</p>
+      </div>
+      
+    </header>
+
+    <div class="chairs">
+      <article class="chair p1">
+        <div class="chair-top"><span class="pl">PLAYER 1</span><span>CHAIR</span></div>
+        <div class="portrait">
+          <img src="assets/images/tamer-pixel.png" alt="Pixel-art portrait of Tamer Chahine" width="572" height="686" loading="lazy">
+          <div class="fallback">[PIXEL PORTRAIT]<br>assets/images/tamer-pixel.png</div>
+        </div>
+        <h2>TAMER CHAHINE</h2>
+        <!-- EDIT: replace the placeholder below with the verified biography. -->
+        <p class="bio">[Chair biography — add verified bio here]</p>
+        <div class="stat-row"><span class="label cyan">CHAIR</span><span class="label vio">CRISIS DIVISION</span></div>
+        <button class="btn" type="button" data-chair-select="PLAYER 1" style="align-self:flex-start">SELECT PLAYER 1</button>
+      </article>
+      <article class="chair p2">
+        <div class="chair-top"><span class="pl">PLAYER 2</span><span>CO-CHAIR</span></div>
+        <div class="portrait">
+          <img src="assets/images/mutasim-pixel.png" alt="Pixel-art portrait of Mutasim Assidmi" width="572" height="686" loading="lazy">
+          <div class="fallback">[PIXEL PORTRAIT]<br>assets/images/mutasim-pixel.png</div>
+        </div>
+        <h2>MUTASIM ASSIDMI</h2>
+        <!-- EDIT: replace the placeholder below with the verified biography. -->
+        <p class="bio">[Co-chair biography — add verified bio here]</p>
+        <div class="stat-row"><span class="label mag">CO-CHAIR</span><span class="label vio">CRISIS DIVISION</span></div>
+        <button class="btn mag" type="button" data-chair-select="PLAYER 2" style="align-self:flex-start">SELECT PLAYER 2</button>
+      </article>
+    </div>
+  </main>
+
+  <div data-slot="footer"></div>
+  <script src="js/core/config.js" defer></script>
+  <script src="js/core/util.js" defer></script>
+  <script src="js/ui/layout.js" defer></script>
+  <script src="js/core/audio.js" defer></script>
+  <script src="js/core/release.js" defer></script>
+  <script src="js/core/status.js" defer></script>
+  <script src="js/ui/modal.js" defer></script>
+  <script src="js/ui/fx.js" defer></script>
+  <script src="js/ui/chrome.js" defer></script>
+  <script src="js/game/sprites.js" defer></script>
+  <script src="js/game/characters.js" defer></script>
+  <script src="js/pages/chairs.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>

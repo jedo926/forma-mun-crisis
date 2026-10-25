@@ -1,0 +1,24 @@
+/* FORMA MUN · Crisis Division — Admin control room */
+.admin-login { max-width: 560px; }
+.admin-login form { display: flex; flex-direction: column; gap: 16px; margin-bottom: 14px; }
+.admin-login .input { width: 100%; }
+.admin-msg { margin: 0; min-height: 22px; font-family: var(--px); font-size: 9px; line-height: 1.6; color: var(--cyan); }
+.admin-msg.bad { color: var(--red); }
+.admin-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+.admin-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.admin-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); margin-bottom: 22px; }
+.tile-stat p { margin: 12px 0 0; }
+.tile-stat .big { font-family: var(--px); font-size: 13px; line-height: 1.6; }
+.big.ok, .warnings .ok, #main .ok { color: var(--cyan); }
+.big.bad, #main .bad { color: var(--red); }
+.admin-two { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); margin-bottom: 22px; }
+.counts { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.count { display: flex; flex-direction: column; gap: 6px; padding: 12px; background: var(--bg); border: 2px solid var(--line); }
+.count b { font-family: var(--px); font-weight: 400; font-size: 18px; color: var(--magenta); }
+.count span { font-family: var(--px); font-size: 7px; color: var(--muted); }
+.warnings ul { margin: 10px 0 0; padding-left: 22px; color: #ffd166; }
+.warnings li { margin-bottom: 4px; }
+.code { width: 100%; min-height: 260px; margin: 12px 0; padding: 14px; background: #05060d; color: #cfe8ff; border: 3px solid var(--line); font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.4; resize: vertical; }
+.code.short { min-height: 110px; }
+.code:focus { border-color: var(--cyan); outline: none; }
+code { font-family: 'Courier New', monospace; color: var(--cyan); }

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Crisis Briefing · FORMA MUN Crisis Division</title>
+  <meta name="description" content="FORMA MUN Crisis Division — crisis committee portal.">
+  <meta name="theme-color" content="#070812">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/home.css">
+  <link rel="stylesheet" href="css/game.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/fx.css">
+</head>
+<body data-page="briefing">
+  <!-- Header, nav and status bar are rendered by js/ui/layout.js from the site map in js/core/config.js -->
+  <div data-slot="header"></div>
+  <noscript class="nav-fallback"><nav class="nav-plain" aria-label="Main"><a href="index.html">HOME</a> · <a href="briefing.html">BRIEFING</a> · <a href="characters.html">CHARACTERS</a> · <a href="factions.html">FACTIONS</a> · <a href="timeline.html">TIMELINE</a> · <a href="updates.html">UPDATES</a> · <a href="locations.html">LOCATIONS</a> · <a href="rules.html">RULES</a> · <a href="intel.html">INTEL</a> · <a href="chairs.html">CHAIRS</a></nav></noscript>
+
+  <main id="main" class="screen">
+    <header class="screen-head">
+      <div>
+        <p class="kicker">STAGE 01</p>
+        <h1 class="glitch">CRISIS BRIEFING</h1>
+        <p class="lead">Topic overview, context, committee format and debate scope.</p>
+      </div>
+      <span class="lock-chip" data-lock-chip>LOCKED</span>
+    </header>
+
+    <div data-locked-view>
+      <div class="grid">
+        <section class="panel panel-neon">
+          <span class="label red">INCOMING</span>
+          <h2 style="margin-top:14px">AN UNSTABLE SITUATION IS DEVELOPING</h2>
+          <span class="redacted"></span><span class="redacted w80"></span><span class="redacted w60"></span><span class="redacted w80"></span>
+          <p class="muted">Authorized briefing pending.</p>
+        </section>
+        <section class="panel">
+          <h2>ON RELEASE YOU RECEIVE</h2>
+          <ul style="margin:0;padding-left:22px">
+            <li>Topic overview</li><li>Background context</li><li>Committee format</li><li>Debate scope</li><li>Background reading</li>
+          </ul>
+        </section>
+        <section class="panel">
+          <h2>STAND BY</h2>
+          <p class="muted">This screen unlocks automatically when the release server confirms the transmission. No refresh needed.</p>
+          <div class="countdown" role="timer" aria-label="Countdown to release, 7 January 2027, 22:00 Riyadh time">
+          <div class="cd-box"><span class="cd-num" data-cd="d">--</span><span class="cd-unit">DAYS</span></div>
+          <div class="cd-box"><span class="cd-num" data-cd="h">--</span><span class="cd-unit">HRS</span></div>
+          <div class="cd-box"><span class="cd-num" data-cd="m">--</span><span class="cd-unit">MIN</span></div>
+          <div class="cd-box"><span class="cd-num" data-cd="s">--</span><span class="cd-unit">SEC</span></div>
+        </div>
+        </section>
+      </div>
+    </div>
+    <div data-released-view hidden></div>
+  </main>
+
+  <div data-slot="footer"></div>
+  <script src="js/core/config.js" defer></script>
+  <script src="js/core/util.js" defer></script>
+  <script src="js/ui/layout.js" defer></script>
+  <script src="js/core/audio.js" defer></script>
+  <script src="js/core/release.js" defer></script>
+  <script src="js/core/status.js" defer></script>
+  <script src="js/ui/modal.js" defer></script>
+  <script src="js/ui/fx.js" defer></script>
+  <script src="js/ui/chrome.js" defer></script>
+  <script src="js/pages/common.js" defer></script>
+  <script src="js/pages/briefing.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>

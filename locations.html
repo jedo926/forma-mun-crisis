@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Locations · FORMA MUN Crisis Division</title>
+  <meta name="description" content="FORMA MUN Crisis Division — crisis committee portal.">
+  <meta name="theme-color" content="#070812">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/home.css">
+  <link rel="stylesheet" href="css/game.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/fx.css">
+</head>
+<body data-page="locations">
+  <!-- Header, nav and status bar are rendered by js/ui/layout.js from the site map in js/core/config.js -->
+  <div data-slot="header"></div>
+  <noscript class="nav-fallback"><nav class="nav-plain" aria-label="Main"><a href="index.html">HOME</a> · <a href="briefing.html">BRIEFING</a> · <a href="characters.html">CHARACTERS</a> · <a href="factions.html">FACTIONS</a> · <a href="timeline.html">TIMELINE</a> · <a href="updates.html">UPDATES</a> · <a href="locations.html">LOCATIONS</a> · <a href="rules.html">RULES</a> · <a href="intel.html">INTEL</a> · <a href="chairs.html">CHAIRS</a></nav></noscript>
+
+  <main id="main" class="screen">
+    <header class="screen-head">
+      <div>
+        <p class="kicker">STAGE 06</p>
+        <h1 class="glitch">LOCATIONS</h1>
+        <p class="lead">Interactive schematic of the locations named in the approved material.</p>
+      </div>
+      <span class="lock-chip" data-lock-chip>LOCKED</span>
+    </header>
+
+    <div data-locked-view>
+      <div class="map-wrap">
+        <div>
+          <div class="map" aria-label="Map withheld">
+            <canvas class="scramble" aria-hidden="true"></canvas>
+            <div class="sweep" aria-hidden="true"></div>
+            <div class="withheld"><span>MAP DATA WITHHELD</span><span class="blink" style="font-size:8px;color:#a3abd1">COORDINATES RELEASE WITH THE SCENARIO</span></div>
+          </div>
+          <p class="map-note">NO GEOGRAPHIC DATA IS SHOWN BEFORE RELEASE</p>
+        </div>
+        <section class="panel">
+          <h2>STAND BY</h2>
+          <p class="muted">This screen unlocks automatically when the release server confirms the transmission. No refresh needed.</p>
+          <div class="countdown" role="timer" aria-label="Countdown to release, 7 January 2027, 22:00 Riyadh time">
+          <div class="cd-box"><span class="cd-num" data-cd="d">--</span><span class="cd-unit">DAYS</span></div>
+          <div class="cd-box"><span class="cd-num" data-cd="h">--</span><span class="cd-unit">HRS</span></div>
+          <div class="cd-box"><span class="cd-num" data-cd="m">--</span><span class="cd-unit">MIN</span></div>
+          <div class="cd-box"><span class="cd-num" data-cd="s">--</span><span class="cd-unit">SEC</span></div>
+        </div>
+        </section>
+      </div>
+    </div>
+    <div data-released-view hidden></div>
+  </main>
+
+  <div data-slot="footer"></div>
+  <script src="js/core/config.js" defer></script>
+  <script src="js/core/util.js" defer></script>
+  <script src="js/ui/layout.js" defer></script>
+  <script src="js/core/audio.js" defer></script>
+  <script src="js/core/release.js" defer></script>
+  <script src="js/core/status.js" defer></script>
+  <script src="js/ui/modal.js" defer></script>
+  <script src="js/ui/fx.js" defer></script>
+  <script src="js/ui/chrome.js" defer></script>
+  <script src="js/pages/common.js" defer></script>
+  <script src="js/pages/locations.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>

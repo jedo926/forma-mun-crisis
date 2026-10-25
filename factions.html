@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Factions · FORMA MUN Crisis Division</title>
+  <meta name="description" content="FORMA MUN Crisis Division — crisis committee portal.">
+  <meta name="theme-color" content="#070812">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/home.css">
+  <link rel="stylesheet" href="css/game.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/fx.css">
+</head>
+<body data-page="factions">
+  <!-- Header, nav and status bar are rendered by js/ui/layout.js from the site map in js/core/config.js -->
+  <div data-slot="header"></div>
+  <noscript class="nav-fallback"><nav class="nav-plain" aria-label="Main"><a href="index.html">HOME</a> · <a href="briefing.html">BRIEFING</a> · <a href="characters.html">CHARACTERS</a> · <a href="factions.html">FACTIONS</a> · <a href="timeline.html">TIMELINE</a> · <a href="updates.html">UPDATES</a> · <a href="locations.html">LOCATIONS</a> · <a href="rules.html">RULES</a> · <a href="intel.html">INTEL</a> · <a href="chairs.html">CHAIRS</a></nav></noscript>
+
+  <main id="main" class="screen">
+    <header class="screen-head">
+      <div>
+        <p class="kicker">STAGE 03</p>
+        <h1 class="glitch">FACTIONS</h1>
+        <p class="lead">Groups, descriptions and relationships, exactly as published by the chairs.</p>
+      </div>
+      <span class="lock-chip" data-lock-chip>LOCKED</span>
+    </header>
+
+    <div data-locked-view>
+      <div class="grid">
+        <article class="panel fslot locked">
+          <span class="fnum">01</span>
+          <h2>FACTION 01</h2>
+          <span class="redacted w80"></span><span class="redacted w60"></span>
+          <span class="label red" style="margin-top:auto;align-self:flex-start">SIGNAL PENDING</span>
+        </article>
+        <article class="panel fslot locked">
+          <span class="fnum">02</span>
+          <h2>FACTION 02</h2>
+          <span class="redacted w80"></span><span class="redacted w60"></span>
+          <span class="label red" style="margin-top:auto;align-self:flex-start">SIGNAL PENDING</span>
+        </article>
+        <article class="panel fslot locked">
+          <span class="fnum">03</span>
+          <h2>FACTION 03</h2>
+          <span class="redacted w80"></span><span class="redacted w60"></span>
+          <span class="label red" style="margin-top:auto;align-self:flex-start">SIGNAL PENDING</span>
+        </article>
+        <article class="panel fslot locked">
+          <span class="fnum">04</span>
+          <h2>FACTION 04</h2>
+          <span class="redacted w80"></span><span class="redacted w60"></span>
+          <span class="label red" style="margin-top:auto;align-self:flex-start">SIGNAL PENDING</span>
+        </article>
+      </div>
+      <p class="muted" style="margin-top:22px">Slot count is a placeholder and does not indicate the number of factions.</p>
+    </div>
+    <div data-released-view hidden></div>
+  </main>
+
+  <div data-slot="footer"></div>
+  <script src="js/core/config.js" defer></script>
+  <script src="js/core/util.js" defer></script>
+  <script src="js/ui/layout.js" defer></script>
+  <script src="js/core/audio.js" defer></script>
+  <script src="js/core/release.js" defer></script>
+  <script src="js/core/status.js" defer></script>
+  <script src="js/ui/modal.js" defer></script>
+  <script src="js/ui/fx.js" defer></script>
+  <script src="js/ui/chrome.js" defer></script>
+  <script src="js/pages/common.js" defer></script>
+  <script src="js/pages/factions.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>

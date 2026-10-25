@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Character Select · FORMA MUN Crisis Division</title>
+  <meta name="description" content="FORMA MUN Crisis Division — crisis committee portal.">
+  <meta name="theme-color" content="#070812">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/home.css">
+  <link rel="stylesheet" href="css/game.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/fx.css">
+</head>
+<body data-page="home">
+  <!-- Header, nav and status bar are rendered by js/ui/layout.js from the site map in js/core/config.js -->
+  <div data-slot="header"></div>
+  <noscript class="nav-fallback"><nav class="nav-plain" aria-label="Main"><a href="index.html">HOME</a> · <a href="briefing.html">BRIEFING</a> · <a href="characters.html">CHARACTERS</a> · <a href="factions.html">FACTIONS</a> · <a href="timeline.html">TIMELINE</a> · <a href="updates.html">UPDATES</a> · <a href="locations.html">LOCATIONS</a> · <a href="rules.html">RULES</a> · <a href="intel.html">INTEL</a> · <a href="chairs.html">CHAIRS</a></nav></noscript>
+
+  <div class="intro" id="intro" hidden role="dialog" aria-modal="true" aria-label="Opening screen">
+    <div class="intro-scene" data-scene>
+      <div class="scene-cam" data-scene-cam><canvas data-scene-canvas role="img" aria-label="Pixel-art 90s bedroom: a kid plays a retro console on a CRT TV"></canvas></div>
+      <div class="scene-ui">
+        <button class="btn mag start power-btn" type="button" data-power="sound">▶ POWER ON</button>
+        <p class="power-note">Turns on sound and the intro music</p>
+        <button class="chip-btn power-quiet" type="button" data-power="quiet">ENTER WITHOUT SOUND</button>
+      </div>
+      <button class="chip-btn skip scene-skip" type="button" data-intro-enter>SKIP INTRO ▸▸</button>
+      <div class="scene-flash" aria-hidden="true"></div>
+    </div>
+    <div class="intro-screen">
+      <div class="band" aria-hidden="true"></div><div class="band m" aria-hidden="true"></div>
+      <button class="chip-btn skip" type="button" data-intro-enter>SKIP INTRO ▸▸</button>
+
+      <div class="boot vt" aria-hidden="true">
+        <span class="rise" style="animation-delay:.8s">&gt; CRT INIT ........ OK</span>
+        <span class="rise" style="animation-delay:1.1s">&gt; SIGNAL BUS ...... NOISE</span>
+        <span class="rise" style="animation-delay:1.4s;color:#FF2BD6">&gt; DECRYPT KEY ..... WITHHELD</span>
+      </div>
+      <div class="logo-blocks rise" style="animation-delay:1.6s" aria-hidden="true"><span style="background:#00F5FF"></span><span style="background:#7857FF"></span><span style="background:#FF2BD6"></span></div>
+      <h1 class="glitch rise" style="animation-delay:1.8s">FORMA MUN</h1>
+      <p class="sub rise" style="animation-delay:2.2s">CRISIS DIVISION</p>
+      <p class="px rise" style="animation-delay:2.5s;font-size:11px;margin:0">SIGNAL STATUS: <span class="blink" style="color:#FF3B52" data-signal-status>UNKNOWN</span></p>
+      <p class="cd-inline rise" style="animation-delay:2.8s;margin:0"><span class="sr-only">Time until release: </span><span data-cd-inline>--:--:--:--</span></p>
+      <button class="btn mag start rise" style="animation-delay:3.1s" type="button" data-intro-enter><span class="blink">PRESS START TO ENTER</span></button>
+      <p class="meta">07 JAN 2027 · 22:00 RIYADH · SOUND STARTS MUTED</p>
+    </div>
+  </div>
+
+  <main id="main" class="screen home">
+    <h1 class="sr-only">FORMA MUN Crisis Division — character select</h1>
+    <section class="arena" aria-label="Attract mode arena">
+      <canvas id="stage" width="384" height="176" role="img" aria-label="Pixel-art attract mode: your selected character spars with a CPU opponent"></canvas>
+      <div class="arena-hud" aria-hidden="true">
+        <div class="hp p1"><span class="hp-name" data-p1-name>P1</span><div class="hp-bar"><div class="hp-fill" data-p1-hp></div></div><div class="sp-bar"><div class="sp-fill" data-p1-sp></div></div></div>
+        <div class="vs-box"><b>VS</b><span data-round>RND 1</span></div>
+        <div class="hp p2"><span class="hp-name" data-p2-name>CPU</span><div class="hp-bar"><div class="hp-fill" data-p2-hp></div></div><div class="sp-bar"><div class="sp-fill" data-p2-sp></div></div></div>
+      </div>
+      <div class="arena-banner" data-banner aria-hidden="true"></div>
+      <div class="arena-count" data-count hidden aria-live="assertive"></div>
+      <div class="arena-end" data-end hidden role="dialog" aria-label="Match over">
+        <p class="end-title" data-end-title>YOU WIN!</p>
+        <p class="end-sub" data-end-sub></p>
+        <div class="end-actions"><button class="btn mag" type="button" data-again>PLAY AGAIN</button><button class="btn" type="button" data-exit>EXIT</button></div>
+      </div>
+      <button class="chip-btn arena-exit" type="button" data-exit>EXIT ✕</button>
+      <p class="arena-help">← → MOVE · ↑ JUMP · ↓ BLOCK · J PUNCH · K KICK · L SPECIAL · ESC EXIT</p>
+      <div class="touch-pad" data-touch aria-hidden="true">
+        <div class="tp-dir"><button type="button" data-k="left" tabindex="-1">◀</button><button type="button" data-k="up" tabindex="-1">▲</button><button type="button" data-k="down" tabindex="-1">▼</button><button type="button" data-k="right" tabindex="-1">▶</button></div>
+        <div class="tp-act"><button type="button" data-k="punch" tabindex="-1">P</button><button type="button" data-k="kick" tabindex="-1">K</button><button type="button" data-k="special" tabindex="-1" class="sp">SP</button></div>
+      </div>
+      <div class="arena-bar"><span class="tag">ATTRACT MODE · CPU VS CPU</span><button class="btn mag play-btn" type="button" data-play aria-label="Play: fight the CPU in full screen">▶ PLAY</button></div>
+    </section>
+
+    <section class="select" aria-labelledby="select-title">
+      <aside class="p1-card" aria-live="polite">
+        <span class="tagline" data-sel-tag>PLAYER 1</span>
+        <h2 data-sel-name>UNKNOWN ENTITY</h2>
+        <dl>
+          <dt>ROLE</dt><dd data-sel-role>CLASSIFIED</dd>
+          <dt>AFFILIATION</dt><dd data-sel-aff>CLASSIFIED</dd>
+        </dl>
+        <a class="btn" href="characters.html" data-sel-link style="margin-top:auto">VIEW DOSSIER</a>
+      </aside>
+      <div>
+        <div class="select-head"><h2 id="select-title">CHOOSE YOUR DELEGATE</h2><p>ARROWS MOVE · ENTER SELECTS</p></div>
+        <div id="roster" class="roster" role="listbox" aria-labelledby="select-title"><noscript><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span></noscript></div>
+      </div>
+    </section>
+
+    <aside class="signal" aria-label="Signal and release">
+      <div class="panel panel-neon">
+        <p class="signal-status" style="margin:0 0 12px">SIGNAL STATUS: <span class="val blink" data-signal-status>UNKNOWN</span></p>
+        <p class="signal-status" style="margin:0"><span data-unlock-label>TRANSMISSION UNLOCKS</span><br><span style="color:#00F5FF">07 JAN 2027 · 22:00</span> RIYADH</p>
+      </div>
+      <div class="panel">
+        <div class="countdown" role="timer" aria-label="Countdown to release, 7 January 2027, 22:00 Riyadh time">
+          <div class="cd-box"><span class="cd-num" data-cd="d">--</span><span class="cd-unit">DAYS</span></div>
+          <div class="cd-box"><span class="cd-num" data-cd="h">--</span><span class="cd-unit">HRS</span></div>
+          <div class="cd-box"><span class="cd-num" data-cd="m">--</span><span class="cd-unit">MIN</span></div>
+          <div class="cd-box"><span class="cd-num" data-cd="s">--</span><span class="cd-unit">SEC</span></div>
+        </div>
+      </div>
+      <button class="btn mag start" type="button" data-open-menu>PRESS START ▸</button>
+      <div class="panel">
+        <h3>HOW TO PLAY</h3>
+        <ul style="margin:0;padding-left:20px">
+          <li>Pick a fighter, then hit ▶ PLAY (or P) to fight the CPU full screen. The two chairs are always unlocked.</li>
+          <li>Every "?" becomes a real character when the countdown ends and the server confirms release.</li>
+          <li>← → move · ↑ jump · ↓ block · J punch · K kick · L special · M sound.</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <div data-slot="footer"></div>
+  <script src="js/core/config.js" defer></script>
+  <script src="js/core/util.js" defer></script>
+  <script src="js/ui/layout.js" defer></script>
+  <script src="js/core/audio.js" defer></script>
+  <script src="js/core/release.js" defer></script>
+  <script src="js/core/status.js" defer></script>
+  <script src="js/ui/modal.js" defer></script>
+  <script src="js/ui/fx.js" defer></script>
+  <script src="js/ui/chrome.js" defer></script>
+  <script src="js/game/sprites.js" defer></script>
+  <script src="js/game/characters.js" defer></script>
+  <script src="js/game/arena.js" defer></script>
+  <script src="js/ui/intro-scene.js" defer></script>
+  <script src="js/pages/home.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>

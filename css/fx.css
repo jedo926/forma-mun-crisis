@@ -1,0 +1,44 @@
+/* FORMA MUN · Crisis Division — Release overlay, topic cutscene, reduced effects (load last) */
+
+/* ---------- Release overlay ---------- */
+.release-fx { position: fixed; inset: 0; z-index: 140; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 20px; text-align: center; background: rgba(0,0,0,.85); cursor: pointer; }
+.release-fx canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.release-fx h2 { position: relative; margin: 0; font-family: var(--px); font-weight: 400; font-size: clamp(22px, 5vw, 56px); color: var(--cyan); animation: rel-in .6s steps(6); }
+.release-fx p { position: relative; margin: 0; font-family: var(--px); font-size: 11px; color: var(--magenta); }
+@keyframes rel-in { from { transform: scale(3); opacity: 0; filter: brightness(4); } }
+
+/* ---------- Topic cutscene ---------- */
+.cutscene { position: fixed; inset: 0; z-index: 145; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 24px; text-align: center; cursor: pointer;
+  background: radial-gradient(ellipse at 50% 55%, #1c1148 0%, #070812 60%, #000 100%); overflow: hidden; outline: none; animation: cs-in .5s steps(5); }
+@keyframes cs-in { from { opacity: 0; filter: brightness(3) hue-rotate(90deg); } }
+.cutscene.leaving { animation: cs-out .5s steps(5) forwards; }
+@keyframes cs-out { to { opacity: 0; transform: scaleY(.02); filter: brightness(3); } }
+.cutscene::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0,0,0,.3) 3px, transparent 4px); }
+.cs-bars { position: absolute; left: 0; right: 0; top: 0; height: 100%; pointer-events: none;
+  background: linear-gradient(#000 0 10%, transparent 10% 90%, #000 90%); }
+.cs-kicker { position: relative; margin: 0; font-family: var(--px); font-size: clamp(10px, 1.2vw, 14px); color: var(--red); letter-spacing: 4px; }
+.cs-date { position: relative; margin: 0; font-family: var(--px); font-size: clamp(11px, 1.5vw, 18px); color: var(--cyan); letter-spacing: 6px; opacity: 0; animation: rise .4s steps(4) .6s forwards; }
+.cs-title { position: relative; margin: 0; max-width: 1200px; font-family: var(--px); font-weight: 400; font-size: clamp(26px, 5.4vw, 76px); line-height: 1.35; color: var(--text);
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 0 .55em; text-shadow: 5px 0 var(--magenta), -5px 0 var(--cyan), 0 0 40px rgba(120,87,255,.6); }
+.cs-w { display: inline-block; opacity: 0; transform: translateY(30px) scale(1.6); animation: cs-word .35s steps(4) forwards; }
+.cs-vs { color: var(--red); text-shadow: 5px 5px 0 #000, 0 0 30px var(--red); }
+@keyframes cs-word { to { opacity: 1; transform: none; } }
+.cs-rule { position: relative; width: min(900px, 80vw); height: 6px; background: repeating-linear-gradient(90deg, var(--cyan) 0 12px, var(--magenta) 12px 24px); transform: scaleX(0); animation: cs-rule .6s steps(8) 2.6s forwards; }
+@keyframes cs-rule { to { transform: scaleX(1); } }
+.cs-tagline { position: relative; margin: 0; max-width: 820px; font-size: clamp(20px, 2vw, 28px); color: var(--muted); opacity: 0; animation: rise .5s steps(4) 3.1s forwards; }
+.cs-premise { position: relative; margin: 0; font-family: var(--px); font-size: clamp(8px, .9vw, 11px); color: var(--violet); opacity: 0; animation: rise .5s steps(4) 3.5s forwards; }
+.cs-skip { position: absolute; bottom: 12%; margin: 0; font-family: var(--px); font-size: 9px; color: var(--muted); opacity: 0; animation: rise .4s steps(2) 4s forwards, blink 1s steps(1) 4.4s infinite; }
+html.fx-low .cutscene .cs-w, html.fx-low .cutscene .cs-date, html.fx-low .cutscene .cs-tagline, html.fx-low .cutscene .cs-premise, html.fx-low .cutscene .cs-skip { opacity: 1; transform: none; }
+html.fx-low .cs-rule { transform: none; }
+@media (prefers-reduced-motion: reduce) { .cutscene .cs-w, .cutscene .cs-date, .cutscene .cs-tagline, .cutscene .cs-premise, .cutscene .cs-skip { opacity: 1; transform: none; } .cs-rule { transform: none; } }
+
+/* ---------- Reduced effects ---------- */
+html.fx-low *, html.fx-low *::before, html.fx-low *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; transition: none !important; }
+html.fx-low .noise, html.fx-low .intro .band, html.fx-low .map .sweep { display: none; }
+html.fx-low .chair, html.fx-low .intro .rise { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; transition: none !important; scroll-behavior: auto !important; }
+  .noise, .intro .band, .map .sweep { display: none; }
+  .chair, .intro .rise { opacity: 1; transform: none; }
+}
+@media print { .crt, .noise, .topbar, .statusbar { display: none; } body { background: #fff; color: #000; } }

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Admin · FORMA MUN Crisis Division</title>
+  <meta name="description" content="FORMA MUN Crisis Division — crisis committee portal.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#070812">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/home.css">
+  <link rel="stylesheet" href="css/game.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/fx.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body data-page="admin">
+  <!-- Header, nav and status bar are rendered by js/ui/layout.js from the site map in js/core/config.js -->
+  <div data-slot="header"></div>
+  <noscript class="nav-fallback"><nav class="nav-plain" aria-label="Main"><a href="index.html">HOME</a> · <a href="briefing.html">BRIEFING</a> · <a href="characters.html">CHARACTERS</a> · <a href="factions.html">FACTIONS</a> · <a href="timeline.html">TIMELINE</a> · <a href="updates.html">UPDATES</a> · <a href="locations.html">LOCATIONS</a> · <a href="rules.html">RULES</a> · <a href="intel.html">INTEL</a> · <a href="chairs.html">CHAIRS</a></nav></noscript>
+
+  <main id="main" class="screen admin">
+    <header class="screen-head">
+      <div>
+        <p class="kicker">OPERATOR ACCESS</p>
+        <h1 class="glitch">CONTROL ROOM</h1>
+        <p class="lead">Release status, content health check, pre-release preview and the content encoder.</p>
+      </div>
+    </header>
+
+    <section class="panel panel-neon admin-login" data-admin-login>
+      <h2>OPERATOR LOGIN</h2>
+      <form data-login-form autocomplete="on">
+        <div class="field"><label for="adm-user">USERNAME</label><input id="adm-user" class="input" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" required></div>
+        <div class="field"><label for="adm-pass">PASSWORD</label><input id="adm-pass" class="input" name="password" type="password" autocomplete="current-password" required></div>
+        <button class="btn mag" type="submit">LOG IN ▸</button>
+        <p class="admin-msg" data-login-msg role="alert"></p>
+      </form>
+      <p class="muted">Checked on the server. Five wrong attempts lock this device out for 15 minutes.</p>
+    </section>
+
+    <section data-admin-dash hidden>
+      <div class="admin-bar">
+        <span class="label vio" data-a="session">SESSION</span>
+        <div class="admin-actions"><button class="btn" type="button" data-a="refresh">REFRESH</button><button class="btn mag" type="button" data-a="logout">LOG OUT</button></div>
+      </div>
+      <div class="admin-grid">
+        <div class="panel tile-stat"><span class="label">STATE</span><p class="big" data-a="state">…</p></div>
+        <div class="panel tile-stat"><span class="label">COUNTDOWN</span><p class="big" data-a="countdown">…</p></div>
+        <div class="panel tile-stat"><span class="label">RELEASE AT</span><p data-a="release">…</p></div>
+        <div class="panel tile-stat"><span class="label">SERVER TIME</span><p data-a="server">…</p></div>
+        <div class="panel tile-stat"><span class="label">CONTENT</span><p class="big" data-a="content">…</p></div>
+      </div>
+      <div class="admin-two">
+        <section class="panel"><h2>CONTENT ON THE SERVER</h2><div class="counts" data-a="counts"></div><h3 style="margin-top:20px">HEALTH CHECK</h3><div class="warnings" data-a="warnings"></div></section>
+        <section class="panel panel-neon">
+          <h2>PREVIEW</h2>
+          <p class="muted">See the site exactly as it will look after release. Only you see it, only while logged in.</p>
+          <button class="btn mag start" type="button" data-a="preview">▶ PREVIEW RELEASED SITE</button>
+        </section>
+      </div>
+      <section class="panel admin-tool">
+        <h2>CONTENT ENCODER</h2>
+        <p class="muted">Paste or load the content JSON, validate it, then copy the encoded value into the Vercel variable <code>CRISIS_CONTENT_B64</code> and redeploy. Everything here runs in your browser.</p>
+        <div class="admin-actions"><button class="btn" type="button" data-a="load">LOAD CURRENT SERVER CONTENT</button><button class="btn mag" type="button" data-a="validate">VALIDATE + ENCODE</button></div>
+        <label class="sr-only" for="adm-json">Content JSON</label>
+        <textarea id="adm-json" class="code" data-a="json" spellcheck="false" placeholder='{ "title": "…", "characters": [ … ] }'></textarea>
+        <div class="warnings" data-a="report"></div>
+        <label class="sr-only" for="adm-b64">Encoded value</label>
+        <textarea id="adm-b64" class="code short" data-a="b64" readonly placeholder="Encoded value appears here"></textarea>
+        <div class="admin-bar"><span data-a="size"></span><button class="btn" type="button" data-a="copy">COPY ENCODED VALUE</button></div>
+      </section>
+    </section>
+  </main>
+
+  <div data-slot="footer"></div>
+  <script src="js/core/config.js" defer></script>
+  <script src="js/core/util.js" defer></script>
+  <script src="js/ui/layout.js" defer></script>
+  <script src="js/core/audio.js" defer></script>
+  <script src="js/core/release.js" defer></script>
+  <script src="js/core/status.js" defer></script>
+  <script src="js/ui/modal.js" defer></script>
+  <script src="js/ui/fx.js" defer></script>
+  <script src="js/ui/chrome.js" defer></script>
+  <script src="js/admin/admin.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>

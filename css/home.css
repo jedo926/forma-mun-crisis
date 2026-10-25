@@ -1,0 +1,135 @@
+/* FORMA MUN · Crisis Division — Home: arena, character select, signal panel, intro */
+
+/* ---------- HOME: arena + select ---------- */
+.home { max-width: 1440px; padding-top: 22px; padding-bottom: 40px; display: grid; gap: 22px;
+  grid-template-columns: minmax(0, 1fr) 360px; grid-template-areas: "arena signal" "select signal"; }
+.arena { grid-area: arena; position: relative; border: 4px solid var(--text); background: #000; box-shadow: 8px 8px 0 #000, 0 0 0 4px #000; overflow: hidden; }
+.arena canvas { width: 100%; height: auto; aspect-ratio: 384 / 176; }
+.arena-hud { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; pointer-events: none; }
+.hp { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.hp-name { font-family: var(--px); font-size: 9px; color: var(--cyan); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 2px 2px 0 #000; }
+.hp.p2 { align-items: flex-end; } .hp.p2 .hp-name { color: var(--magenta); }
+.hp-bar { width: 100%; height: 16px; border: 3px solid var(--text); background: #3a0d1c; display: flex; box-shadow: 3px 3px 0 #000; }
+.hp.p1 .hp-bar { justify-content: flex-end; }
+.hp-fill { height: 100%; width: 100%; background: linear-gradient(#ffe066 0 30%, #ffb020 30%); transition: width .25s steps(5); }
+.hp.p1 .hp-fill { background: linear-gradient(#9ffcff 0 30%, var(--cyan) 30%); }
+.hp.p2 .hp-fill { background: linear-gradient(#ffb0f2 0 30%, var(--magenta) 30%); }
+.hp-fill.low { background: linear-gradient(#ff9aa6 0 30%, var(--red) 30%) !important; }
+.vs-box { flex: none; width: 64px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; background: var(--surface); border: 3px solid var(--text); box-shadow: 3px 3px 0 #000; }
+.vs-box b { font-family: var(--px); font-weight: 400; font-size: 15px; color: var(--red); }
+.vs-box span { font-family: var(--px); font-size: 7px; }
+.arena-banner { position: absolute; left: 0; right: 0; top: 42%; text-align: center; font-family: var(--px); font-size: clamp(22px, 5vw, 56px); color: #ffe066;
+  text-shadow: 4px 4px 0 var(--red), -2px -2px 0 #000; pointer-events: none; opacity: 0; transform: scale(2); }
+.arena-banner.show { opacity: 1; transform: none; transition: transform .25s steps(4), opacity .1s; }
+.arena-bar { position: absolute; left: 12px; right: 12px; bottom: 10px; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; pointer-events: none; }
+.arena-bar .tag { font-family: var(--px); font-size: 7px; background: rgba(7,8,18,.85); padding: 6px 8px; border: 2px solid var(--line); color: var(--muted); }
+.arena-bar .btn { pointer-events: auto; min-height: 40px; font-size: 9px; padding: 0 14px; }
+
+.select { grid-area: select; display: grid; gap: 18px; grid-template-columns: 250px minmax(0, 1fr); align-items: start; }
+.p1-card { background: var(--surface); border: 3px solid var(--cyan); box-shadow: 6px 6px 0 var(--cyan-d); padding: 16px; display: flex; flex-direction: column; gap: 10px; min-height: 100%; }
+.p1-card .tagline { font-family: var(--px); font-size: 8px; color: var(--cyan); }
+.p1-card h2 { margin: 0; font-family: var(--px); font-weight: 400; font-size: 13px; line-height: 1.5; word-break: break-word; }
+.p1-card dl { margin: 0; display: grid; gap: 4px; }
+.p1-card dt { font-family: var(--px); font-size: 7px; color: var(--violet); margin-top: 6px; }
+.p1-card dd { margin: 0; font-size: 20px; }
+.select-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.select-head h2 { margin: 0; font-family: var(--px); font-weight: 400; font-size: 13px; }
+.select-head p { margin: 0; font-family: var(--px); font-size: 7px; color: var(--muted); }
+.roster { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
+.tile { position: relative; aspect-ratio: 4 / 5; padding: 6px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; cursor: pointer;
+  background: linear-gradient(#1d1a3d, #0b0a1a); border: 3px solid var(--line); transition: transform .08s steps(2); overflow: hidden; }
+.tile canvas { width: 100%; flex: 1; min-height: 0; object-fit: contain; object-position: bottom; }
+.tile .tname { font-family: var(--px); font-size: 6px; line-height: 1.4; color: var(--muted); text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .q { position: absolute; left: 0; right: 0; top: 30%; text-align: center; font-family: var(--px); font-size: 22px; color: var(--magenta); text-shadow: 0 0 10px var(--magenta), 3px 3px 0 #000; animation: qpulse 1.6s steps(2) infinite; }
+@keyframes qpulse { 50% { color: var(--cyan); text-shadow: 0 0 10px var(--cyan), 3px 3px 0 #000; } }
+.tile:hover, .tile:focus-visible { transform: translateY(-4px); border-color: var(--violet); outline: none; }
+.tile[aria-selected="true"] { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--bg), 0 0 0 6px var(--cyan), 0 0 22px rgba(0,245,255,.7); }
+.tile[aria-selected="true"]::before { content: 'P1'; position: absolute; left: 4px; top: 4px; font-family: var(--px); font-size: 7px; color: var(--bg); background: var(--cyan); padding: 3px 4px; z-index: 2; }
+.tile.p2::after { content: 'CPU'; position: absolute; right: 4px; top: 4px; font-family: var(--px); font-size: 7px; color: var(--bg); background: var(--magenta); padding: 3px 4px; z-index: 2; }
+.tile.p2 { border-color: var(--magenta); }
+.tile.locked { cursor: pointer; }
+
+.signal { grid-area: signal; display: flex; flex-direction: column; gap: 18px; }
+.signal .panel { padding: 18px; }
+.signal-status { font-family: var(--px); font-size: 9px; line-height: 1.8; }
+.signal-status .val { color: var(--red); }
+.signal-status .val.ok { color: var(--cyan); }
+.menu-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.menu-list a { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 0 12px; text-decoration: none; color: var(--text);
+  font-family: var(--px); font-size: 9px; border: 2px solid var(--line); background: var(--bg); }
+.menu-list a .st { font-size: 7px; color: var(--red); }
+.menu-list a .st.open { color: var(--cyan); }
+.menu-list a .st.standby { color: var(--violet); }
+.menu-list a:hover, .menu-list a:focus-visible { border-color: var(--cyan); color: var(--cyan); outline: none; transform: translateX(4px); }
+.menu-list a:hover::before, .menu-list a:focus-visible::before { content: '▸'; color: var(--magenta); margin-right: -4px; }
+
+@media (max-width: 1100px) {
+  .home { grid-template-columns: minmax(0, 1fr); grid-template-areas: "arena" "select" "signal"; }
+}
+@media (max-width: 700px) {
+  .select { grid-template-columns: minmax(0, 1fr); }
+  .arena-hud { padding: 6px; gap: 6px; } .hp-name { font-size: 7px; } .hp-bar { height: 10px; border-width: 2px; }
+  .vs-box { width: 44px; height: 38px; } .vs-box b { font-size: 10px; }
+  .arena-bar .tag { display: none; }
+  .screen { padding: 28px 16px 56px; }
+}
+
+/* ---------- Intro (boot) ---------- */
+.intro { position: fixed; inset: 0; z-index: 150; background: #000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.intro-screen { position: relative; width: min(1200px, 100%); height: min(760px, 100%); border-radius: 28px; overflow: hidden;
+  background: radial-gradient(ellipse at center, var(--surface) 0%, var(--bg) 70%, #000 100%); box-shadow: inset 0 0 120px rgba(0,0,0,.9), 0 0 0 10px #0d0e1c;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; text-align: center; padding: 24px; animation: power .8s steps(5) both; }
+@keyframes power { 0% { transform: scaleY(.01) scaleX(.5); filter: brightness(5); } 60% { transform: scaleY(.02) scaleX(1); } 100% { transform: none; filter: none; } }
+.intro .band { position: absolute; left: 0; right: 0; height: 24px; background: rgba(0,245,255,.18); mix-blend-mode: screen; animation: band 2.4s steps(12) infinite; pointer-events: none; }
+.intro .band.m { background: rgba(255,43,214,.16); height: 12px; animation-delay: -1.2s; }
+@keyframes band { from { top: -40px; } to { top: 100%; } }
+.intro .boot { position: absolute; left: 28px; top: 24px; text-align: left; font-size: 20px; color: var(--cyan); display: flex; flex-direction: column; }
+.intro .rise { opacity: 0; animation: rise .35s steps(3) forwards; }
+@keyframes rise { to { opacity: 1; } }
+.intro .logo-blocks { display: flex; gap: 8px; }
+.intro .logo-blocks span { width: 22px; height: 22px; }
+.intro h1 { margin: 0; font-family: var(--px); font-weight: 400; font-size: clamp(30px, 7vw, 80px); }
+.intro .sub { margin: 0; font-family: var(--px); font-size: clamp(11px, 1.6vw, 16px); letter-spacing: 6px; color: var(--cyan); }
+.intro .skip { position: absolute; right: 24px; top: 20px; z-index: 2; }
+.intro .cd-inline { font-family: var(--px); font-size: clamp(16px, 3vw, 28px); color: var(--magenta); }
+@media (max-width: 700px) { .intro .boot { top: 76px; left: 18px; font-size: 17px; } .intro .skip { right: 14px; top: 14px; } }
+.intro .meta { position: absolute; bottom: 20px; left: 0; right: 0; margin: 0; color: var(--muted); font-size: 18px; }
+.intro.leaving { animation: leave .45s steps(5) forwards; }
+@keyframes leave { to { opacity: 0; transform: scaleY(.02); filter: brightness(3); } }
+
+/* ---------- Default fighters + chairs page sprite ---------- */
+.tile.default { border-color: var(--violet); background: linear-gradient(#251c4d, #0b0a1a); }
+.tile.default .tname { color: var(--text); }
+.ingame { display: flex; align-items: center; gap: 18px; padding: 12px; background: var(--bg); border: 2px dashed var(--line); }
+.ingame canvas { width: 108px; height: auto; flex: none; }
+
+/* ---------- Face-off mode (released roster) ---------- */
+.arena.standoff .hp-bar { opacity: .35; }
+.arena.standoff .vs-box b { animation: blink 1.4s steps(1) infinite; }
+
+/* ---------- Intro power-on screen (the tap that allows music) ---------- */
+.intro .power { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; padding: 24px; background: radial-gradient(ellipse at center, #120c33 0%, #070812 70%); }
+.intro .power-title { margin: 0 0 10px; font-family: var(--px); font-size: clamp(22px, 5vw, 48px); color: var(--text); text-shadow: 3px 0 var(--magenta), -3px 0 var(--cyan); }
+.intro .power-btn { font-size: clamp(14px, 2vw, 20px); min-height: 70px; padding: 0 40px; }
+.intro .power-note { margin: 0; font-size: 20px; color: var(--muted); }
+.intro .power-quiet { margin-top: 6px; }
+.intro.booting .power { display: none; }
+.intro:not(.booting) .rise, .intro:not(.booting) .boot, .intro:not(.booting) .band { animation: none; opacity: 0; }
+.intro:not(.booting) .skip { z-index: 4; }
+
+/* ---------- Intro scene: 90s bedroom → zoom into the TV ---------- */
+.intro-scene { position: absolute; inset: 0; z-index: 5; overflow: hidden; background: #05040f; }
+.scene-cam { position: absolute; inset: 0; transition: transform 1.55s cubic-bezier(.6, 0, .9, .35), filter 1.55s; will-change: transform; }
+.scene-cam canvas { width: 100%; height: 100%; object-fit: cover; object-position: 45% 60%; image-rendering: pixelated; image-rendering: crisp-edges; }
+.intro.zooming .scene-cam { filter: brightness(1.25) saturate(1.2); }
+.scene-ui { position: absolute; left: 3%; top: 36%; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px; text-align: left; background: rgba(7,8,18,.62); border: 3px solid var(--magenta); box-shadow: 6px 6px 0 #000; transition: opacity .3s; }
+@media (max-width: 700px) { .scene-ui { left: 12px; right: 12px; top: 74px; align-items: center; text-align: center; } }
+.scene-ui .power-btn { font-size: clamp(14px, 2vw, 20px); min-height: 68px; padding: 0 40px; }
+.scene-ui .power-note { margin: 0; font-size: 20px; color: var(--text); }
+.scene-ui .power-quiet { background: rgba(7,8,18,.75); }
+.scene-skip { position: absolute; right: 20px; top: 18px; z-index: 2; background: rgba(7,8,18,.75); }
+.intro.zooming .scene-ui, .intro.zooming .scene-skip { opacity: 0; pointer-events: none; }
+.scene-flash { position: absolute; inset: 0; z-index: 3; background: #f4fbff; opacity: 0; pointer-events: none; transition: opacity .28s steps(3); }
+.intro.flash .scene-flash { opacity: 1; }
+.intro.booting .intro-scene { display: none; }
+.intro:not(.booting) .intro-screen { visibility: hidden; }

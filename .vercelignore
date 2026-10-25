@@ -1,0 +1,5 @@
+# Not served by the website (keeps docs and notes off the public deployment)
+README.md
+ASSET_CREDITS.md
+docs/
+.gitignore

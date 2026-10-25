@@ -1,0 +1,45 @@
+{
+  "_readme": "SHAPE EXAMPLE ONLY. Copy this OUTSIDE the repo, fill in the approved content, base64-encode it and paste it into the Vercel env var CRISIS_CONTENT_B64. Every field is optional; missing sections show an honest 'not published' message. Never commit the filled-in file.",
+  "title": "Crisis title",
+  "subtitle": "One-line topic summary",
+  "premiseNote": "Short note on what is fictional in this committee.",
+  "briefing": {
+    "overview": ["Paragraph 1", "Paragraph 2"],
+    "context": ["Verified context paragraph"],
+    "committeeFormat": "How this committee runs",
+    "debateScope": ["Scope item", "Scope item"],
+    "background": ["Background reading notes"]
+  },
+  "characters": [
+    {
+      "id": "unique-id",
+      "name": "Character name",
+      "role": "Role",
+      "affiliation": "Affiliation",
+      "faction": "Faction name (must match a faction name to filter)",
+      "bio": "Biography text, or an array of paragraphs",
+      "portrait": "https://optional-image-url-or-relative-path.png",
+      "special": { "name": "MOVE NAME", "type": "projectile | stream | wave | dash | uppercut | counter | flash", "color": "#ffd166" },
+      "look": { "skin": "#c68a5c", "hair": { "style": "close | crew | side_part | slick | receding | bald | mop | wavy | tall | curly", "color": "#1c1418" }, "facial": "mustache | thin_mustache | goatee | mustache_goatee | stubble", "brows": "thick", "glasses": "thick | wire", "hat": "fedora | helmet", "hatColor": "#4a4036", "hatCard": true, "ears": "big", "jowls": true, "build": "heavy | slim", "extras": ["cigar", "camera", "badge", "armband"], "outfit": { "type": "suit | hoodie | tshirt", "jacket": "#2c2f3a", "shirt": "#eef0f4", "tie": "#2a1c24", "pants": "#25283a", "shoes": "dress | sneaker" } }
+    }
+  ],
+  "factions": [
+    { "id": "f1", "name": "Faction name", "description": "Text", "members": ["unique-id"], "relations": [{ "target": "f2", "type": "ALLY | RIVAL | …", "note": "Only relationships the chairs approve" }] }
+  ],
+  "timeline": [
+    { "date": "Date label", "title": "Event", "kind": "background | crisis", "detail": "Text" }
+  ],
+  "updates": [
+    { "time": "2027-01-07T22:05:00+03:00", "priority": "critical | high | medium | low", "title": "Update title", "detail": "Text" }
+  ],
+  "map": { "label": "Map name", "note": "Map footnote", "image": "optional background image URL" },
+  "locations": [
+    { "id": "l1", "name": "Location", "type": "CITY", "x": 40, "y": 55, "description": "x and y are percentages across the schematic (0–100)" }
+  ],
+  "intel": [
+    { "codename": "FILE-01", "classification": "DECLASSIFIED", "title": "Dossier title", "body": "Only intel approved for public release" }
+  ],
+  "resources": [
+    { "title": "Rules of procedure", "url": "https://link-to-a-real-file.pdf", "type": "pdf", "note": "Optional note" }
+  ]
+}

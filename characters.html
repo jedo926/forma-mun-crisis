@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Characters · FORMA MUN Crisis Division</title>
+  <meta name="description" content="FORMA MUN Crisis Division — crisis committee portal.">
+  <meta name="theme-color" content="#070812">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/home.css">
+  <link rel="stylesheet" href="css/game.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/fx.css">
+</head>
+<body data-page="characters">
+  <!-- Header, nav and status bar are rendered by js/ui/layout.js from the site map in js/core/config.js -->
+  <div data-slot="header"></div>
+  <noscript class="nav-fallback"><nav class="nav-plain" aria-label="Main"><a href="index.html">HOME</a> · <a href="briefing.html">BRIEFING</a> · <a href="characters.html">CHARACTERS</a> · <a href="factions.html">FACTIONS</a> · <a href="timeline.html">TIMELINE</a> · <a href="updates.html">UPDATES</a> · <a href="locations.html">LOCATIONS</a> · <a href="rules.html">RULES</a> · <a href="intel.html">INTEL</a> · <a href="chairs.html">CHAIRS</a></nav></noscript>
+
+  <main id="main" class="screen">
+    <header class="screen-head">
+      <div>
+        <p class="kicker">STAGE 02</p>
+        <h1 class="glitch">CHARACTERS</h1>
+        <p class="lead">Every delegate dossier. Silhouettes unlock into full pixel portraits at release.</p>
+      </div>
+      <span class="lock-chip" data-lock-chip>LOCKED</span>
+    </header>
+
+    <div class="toolbar">
+      <div class="field"><label for="char-search">SEARCH</label><input id="char-search" class="input" type="search" placeholder="Name, role, affiliation" autocomplete="off" disabled></div>
+      <div class="field"><label for="char-filter">FILTER</label><select id="char-filter" class="select-input" disabled><option value="">LOCKED</option></select></div>
+      <span class="label vio" data-char-count style="margin-left:auto">ROSTER SEALED</span>
+    </div>
+    <div id="roster-big" class="roster-big"></div>
+  </main>
+
+  <div data-slot="footer"></div>
+  <script src="js/core/config.js" defer></script>
+  <script src="js/core/util.js" defer></script>
+  <script src="js/ui/layout.js" defer></script>
+  <script src="js/core/audio.js" defer></script>
+  <script src="js/core/release.js" defer></script>
+  <script src="js/core/status.js" defer></script>
+  <script src="js/ui/modal.js" defer></script>
+  <script src="js/ui/fx.js" defer></script>
+  <script src="js/ui/chrome.js" defer></script>
+  <script src="js/game/sprites.js" defer></script>
+  <script src="js/game/characters.js" defer></script>
+  <script src="js/pages/common.js" defer></script>
+  <script src="js/pages/characters.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>

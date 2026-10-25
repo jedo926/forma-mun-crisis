@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Rules & Resources · FORMA MUN Crisis Division</title>
+  <meta name="description" content="FORMA MUN Crisis Division — crisis committee portal.">
+  <meta name="theme-color" content="#070812">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/home.css">
+  <link rel="stylesheet" href="css/game.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/fx.css">
+</head>
+<body data-page="rules">
+  <!-- Header, nav and status bar are rendered by js/ui/layout.js from the site map in js/core/config.js -->
+  <div data-slot="header"></div>
+  <noscript class="nav-fallback"><nav class="nav-plain" aria-label="Main"><a href="index.html">HOME</a> · <a href="briefing.html">BRIEFING</a> · <a href="characters.html">CHARACTERS</a> · <a href="factions.html">FACTIONS</a> · <a href="timeline.html">TIMELINE</a> · <a href="updates.html">UPDATES</a> · <a href="locations.html">LOCATIONS</a> · <a href="rules.html">RULES</a> · <a href="intel.html">INTEL</a> · <a href="chairs.html">CHAIRS</a></nav></noscript>
+
+  <main id="main" class="screen">
+    <header class="screen-head">
+      <div>
+        <p class="kicker">STAGE 07</p>
+        <h1 class="glitch">RULES & RESOURCES</h1>
+        <p class="lead">Procedure, delegate guides and approved documents.</p>
+      </div>
+      
+    </header>
+
+
+    <section class="acc">
+      <button type="button" aria-expanded="true" aria-controls="acc1"><span>01 · COMMITTEE PROCEDURE</span><span class="caret" aria-hidden="true">▸</span></button>
+      <div class="acc-body" id="acc1">
+        <div class="note">General crisis-committee flow for orientation. The chairs' official rules of procedure always take precedence.</div>
+        <ol>
+          <li><strong>Roll call.</strong> Delegates answer "present" or "present and voting".</li>
+          <li><strong>Crisis briefing.</strong> The chairs open with the scenario and the first update.</li>
+          <li><strong>Moderated caucus.</strong> Timed speeches on a topic set by the motion.</li>
+          <li><strong>Unmoderated caucus.</strong> Free movement to negotiate and draft.</li>
+          <li><strong>Directives.</strong> Written actions submitted to the chairs and voted on by committee.</li>
+          <li><strong>Crisis notes.</strong> Private actions sent to the crisis backroom on behalf of your character.</li>
+          <li><strong>Crisis updates.</strong> The chairs announce how the world responds to your actions.</li>
+        </ol>
+        <h3>POINTS</h3>
+        <ul><li>Point of order — procedure was not followed.</li><li>Point of personal privilege — comfort or audibility.</li><li>Point of parliamentary inquiry — a question about procedure.</li></ul></div>
+    </section>
+    <section class="acc">
+      <button type="button" aria-expanded="false" aria-controls="acc2"><span>02 · WRITING DIRECTIVES</span><span class="caret" aria-hidden="true">▸</span></button>
+      <div class="acc-body" id="acc2" hidden>
+        <ul>
+          <li>Give it a clear title and list your sponsors and signatories.</li>
+          <li>State concrete actions: who does what, with which resources, by when.</li>
+          <li>Stay inside your character's powers and the committee's scope.</li>
+          <li>Keep it short. Chairs act on what is written, not what was meant.</li>
+        </ul></div>
+    </section>
+    <section class="acc">
+      <button type="button" aria-expanded="false" aria-controls="acc3"><span>03 · CRISIS NOTES</span><span class="caret" aria-hidden="true">▸</span></button>
+      <div class="acc-body" id="acc3" hidden>
+        <ul>
+          <li>Address the note to the backroom and sign it with your character.</li>
+          <li>Explain the action, the method, and what you want to achieve.</li>
+          <li>Build arcs over several notes rather than one giant move.</li>
+        </ul></div>
+    </section>
+    <section class="acc">
+      <button type="button" aria-expanded="false" aria-controls="acc4"><span>04 · DELEGATE CONDUCT</span><span class="caret" aria-hidden="true">▸</span></button>
+      <div class="acc-body" id="acc4" hidden>
+        <ul>
+          <li>Speak in character, respect other delegates and the chairs.</li>
+          <li>Technology use follows the chairs' instructions on the day.</li>
+          <li>Ask the chairs whenever something is unclear.</li>
+        </ul></div>
+    </section>
+    <section class="acc">
+      <button type="button" aria-expanded="false" aria-controls="acc5"><span>05 · APPROVED DOCUMENTS</span><span class="caret" aria-hidden="true">▸</span></button>
+      <div class="acc-body" id="acc5" hidden>
+        <div data-resources><p class="muted">No approved documents have been published yet. Download links appear here only for real, published files.</p></div></div>
+    </section>
+    <section class="acc">
+      <button type="button" aria-expanded="false" aria-controls="acc6"><span>06 · REFERENCES</span><span class="caret" aria-hidden="true">▸</span></button>
+      <div class="acc-body" id="acc6" hidden>
+        <p class="muted">The reference list is published together with the briefing.</p></div>
+    </section>
+  </main>
+
+  <div data-slot="footer"></div>
+  <script src="js/core/config.js" defer></script>
+  <script src="js/core/util.js" defer></script>
+  <script src="js/ui/layout.js" defer></script>
+  <script src="js/core/audio.js" defer></script>
+  <script src="js/core/release.js" defer></script>
+  <script src="js/core/status.js" defer></script>
+  <script src="js/ui/modal.js" defer></script>
+  <script src="js/ui/fx.js" defer></script>
+  <script src="js/ui/chrome.js" defer></script>
+  <script src="js/pages/common.js" defer></script>
+  <script src="js/pages/rules.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>

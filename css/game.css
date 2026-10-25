@@ -1,0 +1,64 @@
+/* FORMA MUN · Crisis Division — Playable game: PLAY, full screen, countdown, touch controls */
+
+/* ---------- Playable game ---------- */
+.sp-bar { width: 70%; height: 6px; margin-top: 2px; border: 2px solid var(--text); background: #120c26; display: flex; box-shadow: 2px 2px 0 #000; }
+.hp.p1 .sp-bar { justify-content: flex-end; }
+.sp-bar.none { visibility: hidden; }
+.sp-fill { height: 100%; width: 0; background: var(--violet); }
+.sp-fill.ready { background: #ffe066; animation: blink .5s steps(1) infinite; }
+.play-btn { pointer-events: auto; min-height: 46px !important; font-size: 12px !important; padding: 0 22px !important; animation: pulse 1.2s steps(2) infinite; }
+.arena-count { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--px); font-size: clamp(48px, 12vw, 180px); color: #ffe066;
+  text-shadow: 6px 6px 0 var(--red), -3px -3px 0 #000; pointer-events: none; z-index: 4; }
+.arena-count.pop { animation: count-pop .8s steps(6); }
+@keyframes count-pop { 0% { transform: scale(2.4); opacity: 0; } 25% { transform: scale(1); opacity: 1; } 80% { opacity: 1; } 100% { transform: scale(.9); opacity: 0; } }
+.arena-end { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: rgba(7,8,18,.55); }
+.end-title { margin: 0; font-family: var(--px); font-size: clamp(22px, 5vw, 64px); color: var(--cyan); text-shadow: 4px 4px 0 var(--magenta); }
+.end-sub { margin: -8px 0 0; font-family: var(--px); font-size: clamp(10px, 1.4vw, 16px); color: #ffe066; text-align: center; padding: 0 16px; }
+.end-actions { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.arena-exit, .arena-help, .touch-pad { display: none; }
+.arena.playing { position: relative; }
+.arena.playing .arena-bar { display: none; }
+.arena.playing .arena-exit { display: inline-flex; align-items: center; position: absolute; right: 14px; bottom: 14px; z-index: 6; background: rgba(7,8,18,.8); }
+.arena.playing .arena-help { display: block; position: absolute; left: 14px; bottom: 14px; margin: 0; z-index: 3; font-family: var(--px); font-size: 8px; color: var(--muted); background: rgba(7,8,18,.75); padding: 8px 10px; border: 2px solid var(--line); }
+.arena.fsmode { width: 100vw; height: 100vh; height: 100dvh; max-width: none; border: 0; box-shadow: none; display: flex; align-items: center; justify-content: center; background: #000; }
+.arena.fsmode canvas { width: min(100vw, calc(100vh * 384 / 176)); height: auto; }
+.arena.fs { position: fixed; inset: 0; z-index: 180; }
+.arena.fsmode { touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.arena.fsmode .arena-hud { padding: 22px 28px; }
+.arena.fsmode .hp-name { font-size: 14px; }
+.arena.fsmode .hp-bar { height: 24px; }
+.arena.fsmode .vs-box { width: 92px; height: 72px; }
+.arena.fsmode .vs-box b { font-size: 22px; }
+.arena.fsmode .arena-banner { font-size: clamp(26px, 4.5vw, 72px); padding: 0 24px; }
+body.no-scroll { overflow: hidden; }
+/* Touch controls: shown on touch screens (incl. iPad with a keyboard attached) */
+.touch .arena.playing .touch-pad { display: flex; position: absolute; left: 0; right: 0; bottom: 16px; z-index: 6; justify-content: space-between; padding: 0 16px; pointer-events: none; }
+.touch .arena.playing .arena-help { display: none; }
+.touch .arena.playing .arena-exit { top: auto; bottom: 22px; right: 50%; transform: translateX(50%); }
+@media (min-width: 900px) { .touch .touch-pad button { width: 72px; height: 72px; font-size: 16px; } .touch .tp-dir, .touch .tp-act { gap: 12px; } .touch .arena.playing .touch-pad { padding: 0 32px; bottom: 28px; } }
+.touch-pad button { -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+@media (hover: none), (pointer: coarse) {
+  .arena.playing .touch-pad { display: flex; position: absolute; left: 0; right: 0; bottom: 16px; z-index: 6; justify-content: space-between; padding: 0 16px; pointer-events: none; }
+  .arena.playing .arena-help { display: none; }
+  .arena.playing .arena-exit { top: auto; bottom: 22px; right: 50%; transform: translateX(50%); }
+}
+.tp-dir, .tp-act { display: flex; gap: 8px; pointer-events: auto; }
+.touch-pad button { width: 54px; height: 54px; font-family: var(--px); font-size: 14px; color: var(--text); background: rgba(17,19,38,.82); border: 3px solid var(--cyan); touch-action: none; user-select: none; -webkit-user-select: none; }
+.tp-act button { border-color: var(--magenta); }
+.tp-act .sp { border-color: #ffe066; color: #ffe066; }
+.touch-pad button.on { background: var(--cyan); color: var(--bg); }
+
+@media (max-width: 700px) {
+  .arena.fsmode .arena-hud { padding: 12px; gap: 6px; }
+  .arena.fsmode .hp-name { font-size: 8px; }
+  .arena.fsmode .hp-bar { height: 14px; }
+  .arena.fsmode .vs-box { width: 52px; height: 44px; }
+  .arena.fsmode .vs-box b { font-size: 12px; }
+  .touch-pad button { width: 44px; height: 48px; font-size: 11px; }
+  .tp-dir, .tp-act { gap: 5px; }
+  .arena.playing .touch-pad { padding: 0 10px; }
+}
+@media (hover: none) and (orientation: portrait), (pointer: coarse) and (orientation: portrait) {
+  .arena.playing .arena-exit { top: 74px; bottom: auto; }
+  .arena.playing::after { content: 'ROTATE FOR THE BEST VIEW'; position: absolute; left: 0; right: 0; top: 118px; text-align: center; font-family: var(--px); font-size: 8px; color: var(--muted); z-index: 3; pointer-events: none; }
+}

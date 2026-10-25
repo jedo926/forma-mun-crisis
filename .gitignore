@@ -1,0 +1,16 @@
+# Secrets and confidential crisis content must never be committed.
+.env
+.env.*
+*.env
+.vercel/
+crisis-content*.json
+!docs/release-content.schema.example.json
+secret/
+private/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+node_modules/
