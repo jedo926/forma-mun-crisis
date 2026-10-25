@@ -7,6 +7,7 @@
   /* ---------------- Shared chrome: nav, settings, transitions, keys ---------------- */
   function initChrome() {
     $$('[data-toggle-sound]').forEach((b) => b.addEventListener('click', () => Settings.toggleSound()));
+    $$('[data-toggle-music]').forEach((b) => b.addEventListener('click', () => Settings.toggleMusic()));
     $$('[data-toggle-fx]').forEach((b) => b.addEventListener('click', () => Settings.toggleFx()));
     const navBtn = $('.nav-toggle'); const nav = $('#site-nav');
     if (navBtn && nav) navBtn.addEventListener('click', () => { const open = !nav.classList.contains('open'); nav.classList.toggle('open', open); navBtn.setAttribute('aria-expanded', String(open)); Sound.play('move'); });
@@ -31,7 +32,7 @@
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && Modal.node) { e.preventDefault(); Modal.close(); return; }
-      if ((e.key === 'm' || e.key === 'M') && !isTyping(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey) Settings.toggleSound();
+      if ((e.key === 'm' || e.key === 'M') && !isTyping(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey) Settings.toggleMusic();
     });
     // iOS/iPadOS only unlocks audio inside a real gesture (touchend/click), so listen to all of them.
     const unlock = () => { if (Settings.sound) { Sound.unlock(); Music.sync(); } };

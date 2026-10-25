@@ -17,7 +17,7 @@
       h('nav', { id: 'site-nav', class: 'nav', 'aria-label': 'Main' },
         h('ul', null, NAV.map((n) => h('li', null, h('a', { href: n.file, 'aria-current': n.id === PAGE ? 'page' : null }, h('span', { class: 'num', text: n.num }), n.label))))),
       h('div', { class: 'hud-controls' },
-        h('button', { class: 'chip-btn', type: 'button', 'data-toggle-sound': true, 'aria-pressed': 'false', title: 'Sound (M)' }, 'SND OFF'),
+        h('button', { class: 'chip-btn', type: 'button', 'data-toggle-music': true, 'aria-pressed': 'true', title: 'Music (M)' }, 'MUSIC ON'),
         h('button', { class: 'chip-btn', type: 'button', 'data-toggle-fx': true, 'aria-pressed': 'true', title: 'Visual effects' }, 'FX FULL')));
     const skip = h('a', { class: 'skip-link', href: '#main', text: 'SKIP TO CONTENT' });
     const footer = h('footer', { class: 'statusbar' },
@@ -25,7 +25,7 @@
       h('span', null, h('span', { class: 'dot bad' }), 'RELEASE: ', h('b', { 'data-release-status': true, text: 'LOCKED' })),
       h('span', null, 'T-MINUS ', h('b', { 'data-cd-inline': true, text: '--:--:--:--' })),
       h('span', null, CONFIG.timezoneLabel + ' ', h('b', { 'data-local-clock': true, text: '--:--:--' })),
-      h('span', { text: 'M SOUND · ESC CLOSE' }));
+      h('span', { text: 'M MUSIC · ESC CLOSE' }));
     const overlays = [
       h('div', { class: 'crt', 'aria-hidden': 'true' }), h('div', { class: 'noise', 'aria-hidden': 'true' }),
       h('div', { id: 'transition', class: 'wipe', 'aria-hidden': 'true' }), h('div', { id: 'toast-root', class: 'toast-root', 'aria-live': 'polite' })

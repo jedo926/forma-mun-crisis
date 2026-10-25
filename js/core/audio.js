@@ -7,11 +7,13 @@
   /* ---------------- Settings (sound + effects) ---------------- */
   const Settings = {
     sound: store.get('sound', false),
+    musicMuted: store.get('musicMuted', false),
     fxLow: store.get('fxLow', null),
     get lowMotion() { return this.fxLow === null ? reducedMotionQuery.matches : this.fxLow; },
     apply() {
       document.documentElement.classList.toggle('fx-low', this.lowMotion);
       $$('[data-toggle-sound]').forEach((b) => { b.setAttribute('aria-pressed', String(this.sound)); b.textContent = this.sound ? 'SND ON' : 'SND OFF'; });
+      $$('[data-toggle-music]').forEach((b) => { b.setAttribute('aria-pressed', String(!this.musicMuted)); b.textContent = this.musicMuted ? 'MUSIC OFF' : 'MUSIC ON'; });
       $$('[data-toggle-fx]').forEach((b) => { b.setAttribute('aria-pressed', String(!this.lowMotion)); b.textContent = this.lowMotion ? 'FX LOW' : 'FX FULL'; });
       Music.sync();
       emit('forma:settings');
@@ -20,6 +22,10 @@
       this.sound = !this.sound; store.set('sound', this.sound);
       if (this.sound) { Sound.unlock(); Sound.play('select'); }
       this.apply(); toast(this.sound ? 'SOUND ON' : 'SOUND MUTED');
+    },
+    toggleMusic() {
+      this.musicMuted = !this.musicMuted; store.set('musicMuted', this.musicMuted);
+      this.apply(); toast(this.musicMuted ? 'MUSIC OFF' : 'MUSIC ON');
     },
     toggleFx() {
       this.fxLow = !this.lowMotion; store.set('fxLow', this.fxLow);
@@ -131,13 +137,13 @@
       } catch (e) { this.el = null; }
     },
     fadeIn() {
-      const a = this.el; if (!a || !Settings.sound) return;
+      const a = this.el; if (!a || !Settings.sound || Settings.musicMuted) return;
       a.volume = 0; this.sync(); let v = 0;
       const iv = setInterval(() => { v = Math.min(0.35, v + 0.035); a.volume = v; if (v >= 0.35) clearInterval(iv); }, 120);
     },
     sync() {
       const a = this.el; if (!a) return;
-      if (Settings.sound && !document.hidden) { const p = a.play(); if (p && p.catch) p.catch(() => { /* waits for a user gesture */ }); }
+      if (Settings.sound && !Settings.musicMuted && !document.hidden) { const p = a.play(); if (p && p.catch) p.catch(() => { /* waits for a user gesture */ }); }
       else a.pause();
     }
   };
