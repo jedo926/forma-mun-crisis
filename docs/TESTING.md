@@ -105,3 +105,11 @@ Run on 25 Oct 2026 with Node 22 and headless Chromium (Playwright), against a lo
 - **Browser, local server with an in-memory KV:** 64/64 passed (`npm run test:local`). Added: pasting a messy list, a full caucus from start to end, undoing a wrong NEXT, TIME UP, roll call and renaming, tap to add, 12 fast adds in a row, a second tab picking up changes, typing surviving a refresh, and an expired session going to the login screen.
 - **Layout:** every admin section checked at 1280px and 390px with no sideways scrolling.
 - **Not checked:** two chairs pressing buttons at the same moment on the live site. Changes to the caucus are in order within one browser, but two browsers can still overwrite each other if they press within a fraction of a second.
+
+## Crisis Room, Phase 1 (3 Nov 2026)
+
+- **Unit:** 92/92 passed (`npm run test:unit`). Added: a signed token that isn't an admin session is refused by every admin endpoint, simultaneous caucus changes all survive, a held lock answers busy instead of overwriting, the log's names and order, unchanged presses aren't logged, repeated operations run once, log paging, and chair notes staying out of public responses.
+- **Browser, local server with an in-memory KV:** 70/70 passed (`npm run test:local`). Added: the chair name step, notes, a caucus showing up with the right name, a second chair seeing changes without refreshing, typing surviving a refresh, the full log, and the connection warning.
+- **By hand in Chromium:** a fictional caucus at 1280px and 390px.
+- **Not checked:** the lock and log on real Upstash, because previews share production data. Check them on a temporary separate Vercel project before relying on them.
+- **Upstash command limit:** not confirmed. Neither the Vercel MCP nor the CLI could read the plan, so check it in the Upstash dashboard before the conference.

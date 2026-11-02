@@ -8,8 +8,8 @@
 
   // These sections save as they go, so the draft buttons would only confuse.
   // The report keeps PREVIEW, to check how it looks to delegates.
-  const SAVES_ITSELF = ['committee', 'updates', 'report'];
-  const NO_PREVIEW = ['committee', 'updates'];
+  const SAVES_ITSELF = ['committee', 'crisis', 'updates', 'report'];
+  const NO_PREVIEW = ['committee', 'crisis', 'updates'];
 
   function showPanel(name) {
     const known = $$('[data-panel]').some((b) => b.dataset.panel === name);
@@ -32,6 +32,7 @@
     A.updatesInit();
     A.visualInit();
     A.openPanel = () => showPanel(session.get('adminPanel', 'edit'));
+    A.goToPanel = (name) => { showPanel(name); window.scrollTo(0, 0); };
     $$('[data-panel]').forEach((b) => b.addEventListener('click', () => { showPanel(b.dataset.panel); Sound.play('move'); window.scrollTo(0, 0); }));
     A.dashInit();
   }

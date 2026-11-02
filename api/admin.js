@@ -99,7 +99,7 @@ async function handler(req, res) {
   // Everything else requires a valid session.
   const auth = req.headers.authorization || '';
   const session = verify(auth.startsWith('Bearer ') ? auth.slice(7) : '');
-  if (!session) return send(res, 401, { status: 'error', code: 'unauthorized' }, NO_INDEX);
+  if (!session || session.sub !== 'admin') return send(res, 401, { status: 'error', code: 'unauthorized' }, NO_INDEX);
 
   const fail = (code, status = 400) => send(res, status, { status: 'error', code }, NO_INDEX);
   const releaseMs = releaseTime();

@@ -34,9 +34,11 @@ function verify(token) {
   } catch (e) { return null; }
 }
 
+/** Only an admin session counts here. Any other signed token, such as a delegate's, is refused. */
 function adminFromReq(req) {
   const auth = req.headers.authorization || '';
-  return verify(auth.startsWith('Bearer ') ? auth.slice(7) : '');
+  const session = verify(auth.startsWith('Bearer ') ? auth.slice(7) : '');
+  return session && session.sub === 'admin' ? session : null;
 }
 
 function clientIp(req) {

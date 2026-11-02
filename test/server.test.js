@@ -430,7 +430,16 @@ describe('committee handler — with KV', () => {
       const hash = kv.get(key) || new Map();
       let result = null;
       if (cmd === 'GET') result = kv.has(key) ? kv.get(key) : null;
-      if (cmd === 'SET') { kv.set(key, a); result = 'OK'; }
+      if (cmd === 'SET') { if (b !== 'NX' || !kv.has(key)) { kv.set(key, a); result = 'OK'; } }
+      if (cmd === 'DEL') result = kv.delete(key) ? 1 : 0;
+      if (cmd === 'INCR') { result = Number(kv.get(key) || 0) + 1; kv.set(key, String(result)); }
+      if (cmd === 'RPUSH') { const l = kv.get(key) || []; l.push(a); kv.set(key, l); result = l.length; }
+      if (cmd === 'LLEN') result = (kv.get(key) || []).length;
+      if (cmd === 'LRANGE') {
+        const l = kv.get(key) || [];
+        const at = (i) => (i < 0 ? Math.max(0, l.length + i) : i);
+        result = l.slice(at(a), b === -1 ? undefined : at(b) + 1);
+      }
       if (cmd === 'HSET') { hash.set(a, b); kv.set(key, hash); result = 1; }
       if (cmd === 'HDEL') result = hash.delete(a) ? 1 : 0;
       if (cmd === 'HGETALL') result = [...hash.entries()].flat();
@@ -448,6 +457,14 @@ describe('committee handler — with KV', () => {
     await committee(req(reqOpts), r);
     return r;
   }
+  const crisis = require(path.join(root, 'api/crisis'));
+  async function callCrisis(reqOpts) {
+    const r = res();
+    await crisis(req(reqOpts), r);
+    return r;
+  }
+  const crisisPost = (action, body) => callCrisis({ method: 'POST', url: '/api/crisis?action=' + action, headers: admin(), body });
+  const crisisState = async () => (await callCrisis({ method: 'GET', url: '/api/crisis?action=state', headers: admin() })).json;
   const admin = () => ({ authorization: 'Bearer ' + auth.sign({ sub: 'admin', exp: Date.now() + 60_000 }) });
   const directive = (i) => call({ method: 'POST', url: '/api/committee?action=directive', body: { delegation: 'D' + i, text: 't' + i } });
 
@@ -682,6 +699,110 @@ describe('committee handler — with KV', () => {
     const live = await call({ method: 'GET', url: '/api/committee' });
     assert.ok(JSON.stringify(live.json).includes('Secret Speaker'), 'the queue goes public once started');
     assert.ok(!JSON.stringify(live.json).includes('Secret Delegate'), 'the delegate list never does');
+  });
+
+  test('a signed token that is not an admin session is refused everywhere', async () => {
+    const adminLib = require(path.join(root, 'api/admin'));
+    process.env.ADMIN_USERNAME = 'a'; process.env.ADMIN_PASSWORD = 'b';
+    try {
+      const fake = { authorization: 'Bearer ' + auth.sign({ sub: 'delegate', exp: Date.now() + 60_000 }) };
+      const adminRes = res();
+      await adminLib(req({ method: 'GET', url: '/api/admin?action=status', headers: fake }), adminRes);
+      assert.strictEqual(adminRes.statusCode, 401);
+      assert.strictEqual((await call({ method: 'POST', url: '/api/committee?action=control', headers: fake, body: { op: 'clear' } })).statusCode, 401);
+      assert.strictEqual((await call({ method: 'GET', url: '/api/committee?action=delegates', headers: fake })).statusCode, 401);
+      assert.strictEqual((await callCrisis({ method: 'GET', url: '/api/crisis?action=state', headers: fake })).statusCode, 401);
+      assert.strictEqual((await call({ method: 'GET', url: '/api/committee', headers: fake })).json.admin, false);
+    } finally { delete process.env.ADMIN_USERNAME; delete process.env.ADMIN_PASSWORD; }
+  });
+
+  test('caucus changes sent at the same moment all survive', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    await Promise.all(Array.from({ length: 15 }, (_, i) => post('speaker', { op: 'add', name: 'S' + i })));
+    assert.strictEqual((await state()).speakers.length, 15);
+    assert.strictEqual(kv.has('crisis:lock:caucus'), false);
+  });
+
+  test('a stuck lock answers busy instead of overwriting', { timeout: 6000 }, async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    kv.set('crisis:lock:caucus', '1');
+    const r = await post('speaker', { op: 'add', name: 'Late' });
+    assert.strictEqual(r.statusCode, 409);
+    assert.strictEqual(r.json.code, 'busy');
+    assert.strictEqual(kv.has('crisis:lock:caucus'), true, 'the other request keeps its lock');
+    assert.strictEqual((await state()).speakers.length, 0);
+  });
+
+  test('crisis room needs an admin session', async () => {
+    assert.strictEqual((await callCrisis({ method: 'GET', url: '/api/crisis?action=state' })).statusCode, 401);
+    assert.strictEqual((await callCrisis({ method: 'GET', url: '/api/crisis?action=rev' })).statusCode, 401);
+    assert.strictEqual((await callCrisis({ method: 'POST', url: '/api/crisis?action=note', body: { text: 'x' } })).statusCode, 401);
+  });
+
+  test('the activity log records who did what, newest first', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5, topic: 'Harbour', actor: ' Sara ' });
+    await post('speaker', { op: 'add', names: ['A', 'B'], actor: 'Sara' });
+    await post('control', { op: 'start', actor: 'Omar' });
+    await post('control', { op: 'next', actor: 'Omar' });
+    const { feed, feedTotal } = await crisisState();
+    assert.strictEqual(feedTotal, 4);
+    assert.deepStrictEqual(feed.map((e) => e.summary), ['Next speaker', 'Caucus started', '2 speakers added', 'Moderated caucus set up']);
+    assert.strictEqual(feed[0].actor, 'Omar');
+    assert.strictEqual(feed[0].target, 'B');
+    assert.strictEqual(feed[3].actor, 'Sara');
+    assert.ok(Date.parse(feed[0].time));
+  });
+
+  test('a press that changes nothing is not logged', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    await post('control', { op: 'next' });                     // not running yet
+    await post('control', { op: 'stop' });
+    assert.strictEqual((await crisisState()).feedTotal, 1);
+  });
+
+  test('the change counter moves only when something changed', async () => {
+    const rev = async () => (await callCrisis({ method: 'GET', url: '/api/crisis?action=rev', headers: admin() })).json.rev;
+    const start = await rev();
+    assert.strictEqual(await rev(), start);
+    await crisisPost('note', { text: 'Hello', actor: 'Sara' });
+    assert.ok((await rev()) > start);
+  });
+
+  test('a chair note is stored once even if the press is repeated', async () => {
+    const send = () => crisisPost('note', { text: 'Check the harbour', opId: 'op-1', actor: 'Sara' });
+    const [a, b] = await Promise.all([send(), send()]);
+    const c = await send();
+    assert.strictEqual(a.statusCode, 200);
+    assert.deepStrictEqual(b.json, a.json);
+    assert.deepStrictEqual(c.json, a.json);
+    assert.strictEqual((await crisisState()).feedTotal, 1);
+  });
+
+  test('a blank note is refused and long text is cut', async () => {
+    assert.strictEqual((await crisisPost('note', { text: '  ' })).statusCode, 400);
+    await crisisPost('note', { text: 'x'.repeat(900), actor: 'y'.repeat(100) });
+    const [entry] = (await crisisState()).feed;
+    assert.strictEqual(entry.detail.length, 500);
+    assert.strictEqual(entry.actor.length, 40);
+  });
+
+  test('the log can be read in pages', async () => {
+    for (let i = 0; i < 5; i++) await crisisPost('note', { text: 'n' + i });
+    const page = (await callCrisis({ method: 'GET', url: '/api/crisis?action=log&before=3&limit=2', headers: admin() })).json;
+    assert.deepStrictEqual(page.entries.map((e) => e.detail), ['n2', 'n1']);
+    assert.strictEqual(page.total, 5);
+  });
+
+  test('the summary counts what is there and leaves private data out of public responses', async () => {
+    await post('delegate', { op: 'add', names: ['A', 'B', 'C'] });
+    const list = (await post('delegate', { op: 'all-present' })).json.delegates;
+    await post('delegate', { op: 'update', id: list[0].id, present: false });
+    await directive(1);
+    const { summary } = await crisisState();
+    assert.deepStrictEqual([summary.present, summary.delegates, summary.directives], [2, 3, 1]);
+    await crisisPost('note', { text: 'Secret chair note' });
+    const open = await call({ method: 'GET', url: '/api/committee' });
+    assert.ok(!JSON.stringify(open.json).includes('Secret chair note'));
   });
 
   test('the delegate list is admin only', async () => {

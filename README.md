@@ -55,6 +55,7 @@ api/
   release.js      Public release endpoint (checks the server clock)
   admin.js        Admin login + status + pre-release preview + publish (password checked here)
   committee.js    Caucus state, speakers list, saved delegates and public directives
+  crisis.js       Crisis Room: activity log and chair notes (admin only)
   site.js         Public page text (never holds scenario content)
   report.js       Chair report PDF, locked until release
   _lib/content.js Shared helpers + content health check (not deployed as a function)
@@ -104,6 +105,7 @@ The panel has one bar at the top with **PREVIEW**, **SAVE DRAFT** and **PUBLISH*
   - **Run Caucus:** shows one stage at a time: set up, start, run, end. Add speakers by tapping saved delegates, typing a name, or pasting a list from Excel, WhatsApp or Word. A wrong press can be undone: **Speak Now** goes back to an earlier speaker, and **Resume Caucus** reopens an ended one.
   - **Delegates:** a saved list that lasts across caucuses, with attendance, times spoken and directives sent. Add it once by pasting or with **Import from Characters**, and press **New Session** at the start of each day. This list is private and never reaches the public page.
   - **Directives:** read, search and delete directives. The delegate code is shown here.
+- **Crisis Room:** the whole session at a glance: the live caucus, attendance, directives, an activity feed showing who did what, and notes between chairs. Chairs share one login, so the names are what each chair typed, not proof of identity.
 - **Site Status:** release state and countdown, content health check, and **Restore previous version** to undo a publish.
 - **More → All Content:** everything as forms. Use this to add or remove characters, factions, events and other items, and to change fighter looks.
 - **More → All Page Text:** all public text in one searchable list.

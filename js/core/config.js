@@ -13,6 +13,7 @@
     endpoint: '/api/release',
     adminEndpoint: '/api/admin',
     committeeEndpoint: '/api/committee',
+    crisisEndpoint: '/api/crisis',
     siteEndpoint: '/api/site',
     requestTimeoutMs: 8000,
     lockedSlots: 12,          // number of "?" silhouettes before release (display only)

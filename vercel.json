@@ -10,6 +10,9 @@
     "api/committee.js": {
       "maxDuration": 5
     },
+    "api/crisis.js": {
+      "maxDuration": 5
+    },
     "api/site.js": {
       "maxDuration": 5
     },

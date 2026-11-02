@@ -60,6 +60,7 @@
           <button type="button" data-panel="edit">EDIT SITE</button>
           <button type="button" data-panel="updates">POST UPDATE</button>
           <button type="button" data-panel="committee">COMMITTEE</button>
+          <button type="button" data-panel="crisis">CRISIS ROOM</button>
           <button type="button" data-panel="overview">SITE STATUS</button>
           <span class="side-label">MORE</span>
           <button type="button" class="side-more" data-panel="content">ALL CONTENT</button>
@@ -140,6 +141,12 @@
             <div class="panel" data-report-body></div>
           </section>
 
+          <section data-panel-id="crisis" hidden>
+            <h2 class="panel-title">CRISIS ROOM</h2>
+            <p class="vis-help">See the whole session at a glance. Everything saves by itself, with no publishing.</p>
+            <div class="panel" data-crisis-body></div>
+          </section>
+
           <section data-panel-id="committee" hidden>
             <h2 class="panel-title">COMMITTEE</h2>
             <p class="vis-help">Run the session live. Everything saves by itself, with no publishing.</p>
@@ -183,6 +190,7 @@
   <script src="js/admin/committee.js" defer></script>
   <script src="js/admin/committee-run.js" defer></script>
   <script src="js/admin/committee-delegates.js" defer></script>
+  <script src="js/admin/crisis.js" defer></script>
   <script src="js/admin/report.js" defer></script>
   <script src="js/admin/admin.js" defer></script>
   <script src="js/main.js" defer></script>

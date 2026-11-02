@@ -20,7 +20,8 @@
  *   POST /api/committee?action=delegate       body { op: add|update|remove|all-present|new-session, names, id, name, present }
  */
 const { send } = require('./_lib/content');
-const { kvAvailable, kvGet, kvSet, kvHset, kvHdel, kvHvals } = require('./_lib/kv');
+const { kvAvailable, kvGet, kvSet, kvHset, kvHdel, kvHvals, kvLock } = require('./_lib/kv');
+const { logEvent, actorFrom } = require('./_lib/activity');
 const { adminFromReq, readBody, safeEqual } = require('./_lib/auth');
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
@@ -32,6 +33,12 @@ const DIR_KEY = 'crisis:directives:v2';
 const DELEGATE_KEY = 'crisis:delegates';
 const MAX_QUEUE = 100;
 const MAX_DELEGATES = 200;
+// The caucus is one stored record, so changes to it must happen one at a time.
+const LOCKED_ACTIONS = ['caucus', 'control', 'speaker'];
+const CONTROL_LOG = {
+  start: 'Caucus started', pause: 'Caucus paused', resume: 'Caucus resumed', stop: 'Caucus ended', reopen: 'Caucus resumed after ending',
+  next: 'Next speaker', jump: 'Speaker changed', extend: 'Caucus time added', 'extend-speaker': 'Speaker time added', clear: 'Caucus cleared'
+};
 
 const newId = (prefix) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const cleanName = (v) => String(v == null ? '' : v).trim().slice(0, 80);
@@ -180,6 +187,18 @@ async function handler(req, res) {
   if (!kvAvailable()) return send(res, 503, { ok: false, code: 'kv_required' }, NO_IDX);
 
   const body = await readBody(req);
+  const locked = LOCKED_ACTIONS.includes(action);
+  const unlock = locked ? await kvLock('caucus') : null;
+  if (locked && !unlock) return send(res, 409, { ok: false, code: 'busy' }, NO_IDX);
+  try {
+    return await adminAction(action, body, res);
+  } finally {
+    if (unlock) await unlock();
+  }
+}
+
+async function adminAction(action, body, res) {
+  const actor = actorFrom(body);
 
   // ── Set up / reset caucus ─────────────────────────────────
   if (action === 'caucus') {
@@ -196,6 +215,7 @@ async function handler(req, res) {
     caucus.totalMs     = (totalMin * 60 + totalSec) * 1000;
     caucus.perSpeakerMs = (perMin * 60 + perSec) * 1000;
     await saveCaucus(caucus);
+    await logEvent(actor, 'caucus.setup', `${caucus.type === 'moderated' ? 'Moderated' : 'Unmoderated'} caucus set up`, caucus.topic);
     return send(res, 200, { ok: true, caucus }, NO_IDX);
   }
 
@@ -203,6 +223,7 @@ async function handler(req, res) {
   if (action === 'control') {
     const op = String(body.op || '');
     const caucus = await getCaucus();
+    const beforeState = JSON.parse(JSON.stringify(caucus));
     const now = Date.now();
     const speeches = [];
     const addMs = Math.max(1, Math.min(3600, parseInt(body.seconds) || 60)) * 1000;
@@ -274,8 +295,14 @@ async function handler(req, res) {
       Object.assign(caucus, fresh);
     }
 
+    const before = JSON.stringify(beforeState);
+    const changed = JSON.stringify(caucus) !== before;
     await saveCaucus(caucus);
     await countSpeeches(speeches);
+    if (changed && CONTROL_LOG[op]) {
+      const current = caucus.speakers[caucus.currentSpeakerIdx];
+      await logEvent(actor, 'caucus.' + op, CONTROL_LOG[op], ['next', 'jump'].includes(op) && current ? current.name : caucus.topic);
+    }
     return send(res, 200, { ok: true, caucus }, NO_IDX);
   }
 
@@ -314,6 +341,7 @@ async function handler(req, res) {
       syncSpeaker(caucus);
     }
     await saveCaucus(caucus);
+    if (added.length) await logEvent(actor, 'speaker.add', added.length === 1 ? 'Speaker added' : `${added.length} speakers added`, added.length === 1 ? added[0] : '');
     return send(res, 200, { ok: true, caucus, speakers: caucus.speakers, added, skipped, full }, NO_IDX);
   }
 
@@ -363,6 +391,7 @@ async function handler(req, res) {
     const id = String(body.id || '');
     if (!id) return send(res, 400, { ok: false, code: 'missing_id' }, NO_IDX);
     await kvHdel(DIR_KEY, id);
+    await logEvent(actor, 'directive.delete', 'Directive deleted', id);
     return send(res, 200, { ok: true }, NO_IDX);
   }
 

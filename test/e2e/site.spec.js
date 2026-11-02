@@ -459,6 +459,106 @@ test.describe('Admin — running a committee', () => {
   });
 });
 
+test.describe('Admin — Crisis Room', () => {
+  test.skip(!ADMIN_PASS, 'set E2E_ADMIN_USER and E2E_ADMIN_PASS');
+  test.skip(!process.env.E2E_LOCAL, 'changes committee data, so it only runs on the local server');
+  test.describe.configure({ mode: 'serial' });
+
+  const body = (page) => page.locator('[data-crisis-body]');
+  async function openRoom(page, name = 'Sara') {
+    await adminLogin(page);
+    await openPanel(page, 'crisis');
+    await page.locator('[data-chair-name]').fill(name);
+    await page.locator('[data-chair-save]').click();
+    await expect(page.locator('[data-crisis-tab="live"]')).toBeVisible();
+  }
+
+  test('asks who is using it, and the draft buttons stay hidden', async ({ page }) => {
+    await adminLogin(page);
+    await openPanel(page, 'crisis');
+    await expect(body(page)).toContainText('WHO IS USING THIS?');
+    await page.locator('[data-chair-save]').click();
+    await expect(page.locator('[data-crisis-tab="live"]')).toHaveCount(0);       // a name is required
+    await page.locator('[data-chair-name]').fill('Sara');
+    await page.locator('[data-chair-name]').press('Enter');
+    await expect(body(page)).toContainText('Using this as Sara');
+    await expect(page.locator('[data-editor-publish]')).toBeHidden();
+    await expect(page.locator('[data-a="preview"]')).toBeHidden();
+  });
+
+  test('a chair note reaches the feed with the chair name, and only once', async ({ page }) => {
+    await openRoom(page);
+    const text = 'Note ' + Date.now();
+    await page.locator('[data-crisis-note]').fill(text);
+    await page.locator('[data-crisis-note-add]').dblclick();
+    const row = page.locator('[data-crisis-feed] li', { hasText: text });
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText('Sara');
+    await expect(page.locator('[data-crisis-note]')).toHaveValue('');
+  });
+
+  test('a caucus run from the Committee tab shows here under the right name', async ({ page }) => {
+    page.on('dialog', (d) => d.accept());
+    await openRoom(page, 'Omar');
+    await page.evaluate(() => window.FORMA.Admin.comm.send('control', { op: 'clear' }));
+    await page.locator('[data-crisis-open-committee]').click();
+    await expect(page.locator('[data-panel-id="committee"]')).toBeVisible();
+    await page.locator('[data-comm-tab="run"]').click();
+    await page.getByRole('button', { name: 'SET UP CAUCUS' }).click();
+    await page.locator('[data-comm-start]').click();
+    await expect(page.locator('[data-comm-clock]')).toBeVisible();
+    await openPanel(page, 'crisis');
+    await expect(page.locator('[data-crisis-caucus]')).toHaveText('MODERATED CAUCUS LIVE');
+    await expect(page.locator('[data-crisis-clock]')).toHaveText(/^\d\d:\d\d$/);
+    const row = page.locator('[data-crisis-feed] li', { hasText: 'Caucus started' }).first();
+    await expect(row).toContainText('Omar');
+    await page.evaluate(() => window.FORMA.Admin.comm.send('control', { op: 'stop' }));
+  });
+
+  test('a second chair sees changes without refreshing, and typing is kept', async ({ page, context }) => {
+    await openRoom(page, 'Sara');
+    const token = await page.evaluate(() => sessionStorage.getItem('forma:adminToken'));
+    const other = await context.newPage();
+    await other.addInitScript((t) => {
+      sessionStorage.setItem('forma:adminToken', t);
+      sessionStorage.setItem('forma:adminPanel', '"crisis"');
+      sessionStorage.setItem('forma:chairName', '"Omar"');
+    }, token);
+    await other.goto('/admin.html');
+    await expect(other.locator('[data-crisis-feed]')).toBeVisible();
+    await other.locator('[data-crisis-note]').fill('half-typed');
+    const text = 'From Sara ' + Date.now();
+    await page.locator('[data-crisis-note]').fill(text);
+    await page.locator('[data-crisis-note-add]').click();
+    await expect(other.locator('[data-crisis-note]')).toHaveValue('half-typed');
+    await other.locator('[data-crisis-note]').fill('');
+    await other.locator('[data-crisis-note]').blur();
+    await expect(other.locator('[data-crisis-feed] li', { hasText: text })).toBeVisible({ timeout: 12_000 });
+    await other.close();
+  });
+
+  test('the full log opens and pages back', async ({ page }) => {
+    await openRoom(page);
+    await page.evaluate(async () => {
+      const R = window.FORMA.Admin.crisis;
+      for (let i = 0; i < 55; i++) await R.send('note', { text: 'Log filler ' + i });
+    });
+    await page.locator('[data-crisis-tab="log"]').click();
+    await expect(page.locator('[data-crisis-log] li')).toHaveCount(50);
+    await page.locator('[data-crisis-more]').click();
+    await expect(page.locator('[data-crisis-log] li').nth(50)).toBeVisible();
+    await page.locator('[data-crisis-tab="live"]').click();
+  });
+
+  test('losing the connection is shown, not hidden', async ({ page, context }) => {
+    await openRoom(page);
+    await context.route('**/api/crisis**', (route) => route.abort());
+    await expect(page.locator('[data-crisis-offline]')).toBeVisible({ timeout: 12_000 });
+    await context.unroute('**/api/crisis**');
+    await expect(page.locator('[data-crisis-offline]')).toHaveCount(0, { timeout: 12_000 });
+  });
+});
+
 test.describe('Admin — edit site and preview', () => {
   test.skip(!ADMIN_PASS, 'set E2E_ADMIN_USER and E2E_ADMIN_PASS');
 

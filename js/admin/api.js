@@ -33,7 +33,11 @@
   A.post = (action, body) => call(CONFIG.adminEndpoint, action, postOpts(body));
   A.committeeGet = () => call(CONFIG.committeeEndpoint, '');
   A.committeeDelegates = () => call(CONFIG.committeeEndpoint, 'delegates');
-  A.committeePost = (action, body) => call(CONFIG.committeeEndpoint, action, postOpts(body));
+  // Every chair action says who did it, for the activity log.
+  const signed = (body) => Object.assign({ actor: session.get('chairName', '') }, body);
+  A.committeePost = (action, body) => call(CONFIG.committeeEndpoint, action, postOpts(signed(body)));
+  A.crisisGet = (action, opts) => call(CONFIG.crisisEndpoint, action, opts);
+  A.crisisPost = (action, body) => call(CONFIG.crisisEndpoint, action, postOpts(signed(body)));
   A.login = (username, password) => call(CONFIG.adminEndpoint, 'login', postOpts({ username, password }));
 
   // Modules register here so one can react to another without importing it.
