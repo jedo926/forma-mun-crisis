@@ -17,8 +17,7 @@
       h('nav', { id: 'site-nav', class: 'nav', 'aria-label': 'Main' },
         h('ul', null, NAV.map((n) => h('li', null, h('a', { href: n.file, 'aria-current': n.id === PAGE ? 'page' : null }, h('span', { class: 'num', text: n.num }), n.label))))),
       h('div', { class: 'hud-controls' },
-        h('button', { class: 'chip-btn', type: 'button', 'data-toggle-music': true, 'aria-pressed': 'true', title: 'Music (M)' }, 'MUSIC ON'),
-        h('button', { class: 'chip-btn', type: 'button', 'data-toggle-fx': true, 'aria-pressed': 'true', title: 'Visual effects' }, 'FX FULL')));
+        h('button', { class: 'chip-btn', type: 'button', 'data-toggle-music': true, 'aria-pressed': 'true', title: 'Music (M)' }, 'MUSIC ON')));
     const skip = h('a', { class: 'skip-link', href: '#main', text: 'SKIP TO CONTENT' });
     const footer = h('footer', { class: 'statusbar' },
       h('span', null, h('span', { class: 'dot' }), 'LINK: ', h('b', { 'data-link-status': true, text: 'CHECKING…' })),

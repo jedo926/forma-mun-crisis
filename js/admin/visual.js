@@ -19,6 +19,7 @@
   const PARA = /\n{2,}/;
 
   let posted = null;                       // live updates, shown in the page like any visitor would see
+  let reportUrl = null;                    // private copy of the chair report, for after-release views
   const edit = { frame: null, page: 'index.html', view: 'after' };
   const preview = { frame: null, view: 'after' };
 
@@ -49,8 +50,18 @@
   async function loadPosted() {
     const { res, data } = await A.get('updates').catch(() => ({ res: { ok: false }, data: null }));
     posted = res.ok && data ? data.updates : null;
+    if (!reportUrl) {
+      const pdf = await fetch('/api/report?t=' + Date.now(), { cache: 'no-store', headers: { Authorization: 'Bearer ' + A.token() } }).catch(() => null);
+      if (pdf && pdf.ok) reportUrl = URL.createObjectURL(await pdf.blob());
+    }
   }
-  const shownContent = () => Object.assign(JSON.parse(JSON.stringify(A.content)), posted ? { updates: posted } : {});
+  /** The page as delegates will get it: posted updates and the report link are added by the server. */
+  function shownContent() {
+    const c = JSON.parse(JSON.stringify(A.content));
+    if (posted) c.updates = posted;
+    if (reportUrl) c.resources = (c.resources || []).filter((r) => !r.report).concat({ title: 'Chair Report', type: 'PDF', url: 'api/report', note: '', report: true });
+    return c;
+  }
 
   // ---- the frame ----
   function makeFrame(box, onLoad) {
@@ -68,7 +79,10 @@
     const defaults = {};
     $$('[data-edit]', win.document).forEach((el) => { defaults[el.dataset.edit] = site.SiteCopy.getText(el); });
     site.SiteCopy.apply(A.site);
-    if (view === 'after' && A.contentReady) site.Release.setContent(shownContent());
+    if (view === 'after' && A.contentReady) {
+      site.Release.setContent(shownContent());
+      if (reportUrl) site.Release.bindReport(reportUrl);
+    }
     return { site, win, doc: win.document, defaults };
   }
 
@@ -221,5 +235,6 @@
 
   A.onPanel.edit = showEdit;
   A.onContent = () => { if (edit.frame && !$('[data-panel-id="edit"]').hidden) openPage(edit.page); };
+  A.reportChanged = () => { if (reportUrl) URL.revokeObjectURL(reportUrl); reportUrl = null; };
   A.visualInit = init;
 })(window.FORMA = window.FORMA || {});

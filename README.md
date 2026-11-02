@@ -215,9 +215,9 @@ Each character's special move comes from `special` in the content JSON: `{ "name
 | M | Toggle sound: background music + effects (starts muted) |
 | Esc | Close any dialog / leave a match |
 
-The intro opens on an animated **first-person pixel-art scene**: you're on a 90s bedroom floor at dusk, holding a controller wired to a retro console and a big CRT TV that shows the game's title screen. Around you are a shelf of tapes, posters, a door with a jacket, a window onto the neighbourhood, a dresser with a VCR, a bed, and snacks on the rug. Pressing **POWER ON** zooms the camera into the TV, the screen flashes, and you land on the start menu. It's drawn in `js/ui/intro-scene.js`. Browsers only allow music after a tap or click, so that tap turns on sound and starts the intro music. **ENTER WITHOUT SOUND** keeps the site muted. The top bar has **MUSIC** and **FX** (full or reduced effects) toggles.
+The intro opens on an animated **first-person pixel-art scene**: you're on a 90s bedroom floor at dusk, holding a controller wired to a retro console and a big CRT TV that shows the game's title screen. Around you are a shelf of tapes, posters, a door with a jacket, a window onto the neighbourhood, a dresser with a VCR, a bed, and snacks on the rug. Pressing **POWER ON** zooms the camera into the TV, the screen flashes, and you land on the start menu. It's drawn in `js/ui/intro-scene.js`. Browsers only allow music after a tap or click, so that tap turns on sound and starts the intro music. **ENTER WITHOUT SOUND** keeps the site muted. The top bar has **MUSIC** toggle.
 
-**iPad and phones:** the game shows on-screen controls on any touch screen, including an iPad with a keyboard attached. It goes full screen where the browser allows it, and otherwise fills the screen. Scrolling and pinch-zoom are locked during a match. Reduced effects turn on automatically if the device asks for reduced motion.
+**iPad and phones:** the game shows on-screen controls on any touch screen, including an iPad with a keyboard attached. It goes full screen where the browser allows it, and otherwise fills the screen. Scrolling and pinch-zoom are locked during a match.
 
 There are two harmless easter eggs. One involves a very famous cheat code.
 

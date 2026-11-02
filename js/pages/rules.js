@@ -16,6 +16,8 @@
       const box = $('[data-resources]'); if (!box) return;
       const res = arr(c.resources).filter((r) => r && safeUrl(r.url) && str(r.title));
       box.innerHTML = '';
+      const section = box.closest('.acc-body'), toggle = section && document.querySelector(`[aria-controls="${section.id}"]`);
+      if (res.some((r) => r.report) && toggle && toggle.getAttribute('aria-expanded') === 'false') { section.hidden = false; toggle.setAttribute('aria-expanded', 'true'); }
       if (!res.length) { box.append(h('p', { class: 'muted', text: 'No approved documents have been published yet.' })); return; }
       box.append(h('ul', null, res.map((r) => h('li', null,
         h('a', { href: safeUrl(r.url), target: (r.report || /^https?:/i.test(r.url)) ? '_blank' : null, rel: 'noopener', text: str(r.title, 160) }),

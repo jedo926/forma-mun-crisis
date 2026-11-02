@@ -513,11 +513,56 @@ test.describe('Admin — chair report', () => {
     await expect(page.locator('[data-report-state]')).toHaveCount(0);
   });
 
+  test('the report shows in after-release views and opens for an admin', async ({ page }) => {
+    await page.addInitScript(() => { window.confirm = () => true; });
+    await adminLogin(page);
+    await openPanel(page, 'report');
+    const body = Buffer.concat([Buffer.from('%PDF-1.7 '), Buffer.alloc(5000, 65)]);
+    await page.locator('#report-file').setInputFiles({ name: 'report.pdf', mimeType: 'application/pdf', buffer: body });
+    await expect(page.locator('[data-report-state]')).toContainText('ON THE SITE', { timeout: 15_000 });
+
+    await page.locator('[data-a="preview"]').click();
+    const frame = page.frameLocator('[data-prev-frame] iframe');
+    await frame.locator('#site-nav a', { hasText: 'BRIEFING' }).click();
+    const button = frame.locator('[data-chair-report]');
+    await expect(button).toBeVisible();
+    await expect(button).toHaveAttribute('href', /^blob:/);
+    // This test browser has no PDF viewer, so check the file the link points at.
+    const file = await button.evaluate(async (link) => { const b = await (await fetch(link.href)).blob(); return { type: b.type, size: b.size }; });
+    expect(file).toEqual({ type: 'application/pdf', size: body.length });
+
+    await frame.locator('#site-nav a', { hasText: 'RULES' }).click();
+    await expect(frame.locator('a', { hasText: 'Chair Report' })).toBeVisible();
+
+    await page.locator('[data-prev-view="before"]').click();
+    await frame.locator('#site-nav a', { hasText: 'BRIEFING' }).click();
+    await expect(frame.locator('[data-chair-report]')).toHaveCount(0);
+
+    await page.locator('[data-prev-close]').click();
+    await openPanel(page, 'report');
+    await page.locator('[data-report-remove]').click();
+    await expect(page.locator('[data-report-state]')).toHaveCount(0);
+  });
+
   test('a file that is not a PDF is refused', async ({ page }) => {
     await adminLogin(page);
     await openPanel(page, 'report');
     await page.locator('#report-file').setInputFiles({ name: 'notes.pdf', mimeType: 'application/pdf', buffer: Buffer.from('not a pdf') });
     await expect(page.locator('[data-report-msg]')).toHaveText('THAT FILE IS NOT A PDF');
+  });
+});
+
+test.describe('Effects', () => {
+  test('there is no effects button, and old or device settings cannot lower effects', async ({ browser }) => {
+    const context = await browser.newContext({ reducedMotion: 'reduce' });
+    await context.addInitScript(() => { try { localStorage.setItem('forma:fxLow', 'true'); } catch (e) {} });
+    const page = await context.newPage();
+    await page.goto('/briefing.html');
+    await expect(page.getByRole('button', { name: /^FX/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^MUSIC/ })).toBeVisible();
+    expect(await page.evaluate(() => window.FORMA.Settings.lowMotion)).toBe(false);
+    expect(await page.evaluate(() => getComputedStyle(document.querySelector('.glitch')).animationDuration)).not.toBe('0.001s');
+    await context.close();
   });
 });
 
