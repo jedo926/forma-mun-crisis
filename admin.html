@@ -7,6 +7,7 @@
   <meta name="description" content="FORMA MUN Crisis Division — crisis committee portal.">
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#070812">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
   <link rel="preload" href="assets/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin>
@@ -48,20 +49,21 @@
         <span class="top-state" data-a="top-state">…</span>
         <span class="admin-msg" data-editor-status role="status"></span>
         <div class="admin-actions">
+          <button class="btn" type="button" data-a="preview">PREVIEW</button>
           <button class="btn" type="button" data-editor-save>SAVE DRAFT</button>
-          <button class="btn" type="button" data-a="preview">PREVIEW ↗</button>
           <button class="btn mag" type="button" data-editor-publish>PUBLISH ▸</button>
         </div>
       </div>
 
       <div class="admin-shell">
         <nav class="admin-side" aria-label="Control room sections">
-          <button type="button" data-panel="overview">OVERVIEW</button>
-          <button type="button" data-panel="updates">POST UPDATES</button>
-          <button type="button" data-panel="content">SCENARIO</button>
-          <button type="button" data-panel="site">PAGE TEXT</button>
+          <button type="button" data-panel="edit">EDIT SITE</button>
+          <button type="button" data-panel="updates">POST UPDATE</button>
           <button type="button" data-panel="committee">COMMITTEE</button>
-          <button type="button" data-panel="preview">PREVIEW</button>
+          <button type="button" data-panel="overview">STATUS</button>
+          <span class="side-label">MORE</span>
+          <button type="button" class="side-more" data-panel="content">ALL FIELDS</button>
+          <button type="button" class="side-more" data-panel="site">PAGE TEXT LIST</button>
           <div class="side-foot">
             <span class="side-session" data-a="session">SESSION</span>
             <button type="button" class="side-small" data-a="refresh">REFRESH</button>
@@ -73,8 +75,23 @@
           <div data-a="kv-banner" class="admin-notice"></div>
           <div data-a="draft-banner" class="admin-notice"></div>
 
-          <section data-panel-id="overview">
-            <h2 class="panel-title">OVERVIEW</h2>
+          <section data-panel-id="edit" hidden>
+            <h2 class="panel-title">EDIT SITE</h2>
+            <p class="vis-help"><strong>Click any outlined text and type.</strong> Press Enter when you're done, or Esc to cancel. Then press PREVIEW to check it and PUBLISH to save it.</p>
+            <div class="vis-pages" data-vis-pages></div>
+            <div class="vis-tools">
+              <span class="vis-group">
+                <button class="chip-btn" type="button" data-vis-view="after">AFTER RELEASE</button>
+                <button class="chip-btn" type="button" data-vis-view="before">BEFORE RELEASE</button>
+              </span>
+              <span class="vis-key"><i class="key-site"></i>Public as soon as you publish</span>
+              <span class="vis-key"><i class="key-scenario"></i>Locked until release</span>
+            </div>
+            <div class="vis-frame" data-vis-frame></div>
+          </section>
+
+          <section data-panel-id="overview" hidden>
+            <h2 class="panel-title">STATUS</h2>
             <div class="admin-grid">
               <div class="panel tile-stat"><span class="label">STATE</span><p class="big" data-a="state">…</p></div>
               <div class="panel tile-stat"><span class="label">COUNTDOWN</span><p class="big" data-a="countdown">…</p></div>
@@ -94,13 +111,13 @@
           </section>
 
           <section data-panel-id="updates" hidden>
-            <h2 class="panel-title">POST UPDATES</h2>
+            <h2 class="panel-title">POST UPDATE</h2>
             <div data-updates-body></div>
           </section>
 
           <section data-panel-id="content" hidden>
-            <h2 class="panel-title">SCENARIO</h2>
-            <p class="muted">Locked by the server until release. Edit, save a draft, preview it, then publish.</p>
+            <h2 class="panel-title">ALL FIELDS</h2>
+            <p class="muted">Everything as forms: add or remove characters, factions, events and more, and change fighter looks.</p>
             <div class="panel admin-tool" data-admin-editor>
               <div class="editor-tabs" data-editor-tabs></div>
               <div class="editor-body" data-editor-body></div>
@@ -109,7 +126,7 @@
           </section>
 
           <section data-panel-id="site" hidden>
-            <h2 class="panel-title">PAGE TEXT</h2>
+            <h2 class="panel-title">PAGE TEXT LIST</h2>
             <div class="panel" data-site-body></div>
           </section>
 
@@ -118,19 +135,22 @@
             <p class="muted">Runs live. Changes here save as you go and need no publishing.</p>
             <div class="panel" data-committee-body></div>
           </section>
-
-          <section data-panel-id="preview" hidden>
-            <h2 class="panel-title">PREVIEW</h2>
-            <section class="panel panel-neon">
-              <p>Opens the whole site in a new tab exactly as it will look after release, using your latest changes. Unsaved changes are saved as a draft first. Only you can see it.</p>
-              <button class="btn mag start" type="button" data-a="preview-link">▶ PREVIEW RELEASED SITE ↗</button>
-              <p class="muted" style="margin-top:14px">In the preview, switch between DRAFT, PUBLISHED and LOCKED, or press PLAY REVEAL to watch the opening.</p>
-            </section>
-          </section>
         </div>
       </div>
     </section>
   </main>
+
+  <div class="preview-overlay" data-preview-overlay hidden>
+    <div class="prev-bar">
+      <span class="prev-note" data-prev-note></span>
+      <button class="chip-btn" type="button" data-prev-view="after">AFTER RELEASE</button>
+      <button class="chip-btn" type="button" data-prev-view="before">BEFORE RELEASE</button>
+      <button class="chip-btn" type="button" data-prev-reveal>▶ PLAY REVEAL</button>
+      <a class="prev-tab" data-prev-newtab href="index.html?preview=1" target="_blank" rel="opener">SAVED DRAFT IN NEW TAB</a>
+      <button class="btn mag" type="button" data-prev-close>CLOSE ✕</button>
+    </div>
+    <div class="prev-frame" data-prev-frame></div>
+  </div>
 
   <div data-slot="footer"></div>
   <script src="js/core/config.js" defer></script>
@@ -147,6 +167,7 @@
   <script src="js/admin/fields.js" defer></script>
   <script src="js/admin/dashboard.js" defer></script>
   <script src="js/admin/editor.js" defer></script>
+  <script src="js/admin/visual.js" defer></script>
   <script src="js/admin/updates.js" defer></script>
   <script src="js/admin/site.js" defer></script>
   <script src="js/admin/committee.js" defer></script>

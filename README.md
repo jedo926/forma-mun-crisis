@@ -42,9 +42,10 @@ js/
     api.js          Server calls + shared state (F.Admin)
     fields.js       Form building blocks
     dashboard.js    Login, session, release status, health check, restore
-    editor.js       Scenario editor + save draft / preview / publish
+    editor.js       All-fields forms + save draft / publish
+    visual.js       Click-to-edit on the real pages + preview, both in a frame
     updates.js      Post crisis updates
-    site.js         Page text editor
+    site.js         Page text list
     committee.js    Live committee controls
     admin.js        Section switching (loads last)
   main.js           Boots the page (loads last)
@@ -93,18 +94,18 @@ To preview what the released site looks like with **placeholder data**, add `?de
 
 The admin panel is not linked in the nav. Open `https://<your-site>/admin.html` and log in.
 
-The panel has one bar that is always visible, with **SAVE DRAFT**, **PREVIEW** and **PUBLISH**, and these sections:
+The panel has one bar that is always visible, with **PREVIEW**, **SAVE DRAFT** and **PUBLISH**, and these sections:
 
-- **Overview:** live release state and countdown, server time, content size, a count of everything, a health check that flags mistakes, and **Restore previous version** to undo a publish.
-- **Post Updates:** write a crisis update and post it. Before release, updates are held privately and appear at the reveal. After release, they reach every open page within 30 seconds, with a "new update" notice. Updates are stored separately, so posting one never touches anything else, and an editor left open can't overwrite them.
-- **Scenario:** edit everything behind the lock, in tabs: general, characters, factions, timeline, locations, intel, resources.
-- **Page Text:** edit the public text on every page: rules, chair bios, home text, headings. **This is visible to everyone as soon as you publish, even before release**, so the panel asks you to confirm if it contains a scenario title or a character or faction name.
+- **Edit Site:** your real pages. Pick a page, click any outlined text and type. Blue text is public as soon as you publish. Pink text is the scenario and stays locked until release. Switch between **After Release** and **Before Release** to see both versions of a page.
+- **Post Update:** write a crisis update and post it. Before release, updates are held privately and appear at the reveal. After release, they reach every open page within about 40 seconds, with a "new update" notice.
 - **Committee:** set up and run caucuses, manage the speakers list, read and delete directives. It saves as you go. The delegate code is shown here.
-- **Preview:** see the whole site as it will look after release. Unsaved changes are saved as a draft first, so the preview always shows your latest work.
+- **Status:** release state and countdown, content health check, and **Restore previous version** to undo a publish.
+- **More → All Fields:** everything as forms. Use this to add or remove characters, factions, events and other items, and to change fighter looks.
+- **More → Page Text List:** all public text in one searchable list.
 
-**Editing flow:** change things, press PREVIEW to check them, then PUBLISH. Drafts are private and survive closing the browser. Before release, publishing scenario content stays locked. After release, it's live immediately.
+**Editing flow:** change things, press PREVIEW to check them, then PUBLISH. Preview opens inside the panel, shows your latest changes even if unsaved, and needs no pop-ups. Saved drafts are private and survive closing the browser.
 
-**In the preview** a bar stays on top of every page. **DRAFT** shows your unpublished changes, **PUBLISHED** shows what's saved for release, **LOCKED** shows what visitors see now, and **PLAY REVEAL** runs the opening. **EXIT** returns to the normal site. Preview stays on for that tab across every link and reload, and it only works while logged in.
+Publishing asks you to confirm if public text contains a scenario title or a character or faction name.
 
 **Making new text editable:** add `data-edit="page.some-key"` to the element in the page's HTML. It appears in Page Text by itself.
 

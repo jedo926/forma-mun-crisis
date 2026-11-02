@@ -8,7 +8,7 @@
 
   function showPanel(name) {
     const known = $$('[data-panel]').some((b) => b.dataset.panel === name);
-    const target = known ? name : 'overview';
+    const target = known ? name : 'edit';
     if (A.onPanelLeave) A.onPanelLeave();
     $$('[data-panel]').forEach((b) => {
       const on = b.dataset.panel === target;
@@ -23,7 +23,8 @@
   function initAdmin() {
     A.editorInit();
     A.updatesInit();
-    A.openPanel = () => showPanel(session.get('adminPanel', 'overview'));
+    A.visualInit();
+    A.openPanel = () => showPanel(session.get('adminPanel', 'edit'));
     $$('[data-panel]').forEach((b) => b.addEventListener('click', () => { showPanel(b.dataset.panel); Sound.play('move'); window.scrollTo(0, 0); }));
     A.dashInit();
   }

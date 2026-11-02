@@ -79,6 +79,7 @@
       }
     },
     init() {
+      if (F.EMBED) { this.link = 'demo'; this.status = 'locked'; return; }
       if (DEMO) { this.startDemo(); return; }
       if (PREVIEW) { this.startPreview(); return; }
       this.check();

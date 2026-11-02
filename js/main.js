@@ -7,6 +7,7 @@
   /* ---------------- Boot ----------------
      Every module registers itself on window.FORMA; page modules register in FORMA.pages. */
   function boot() {
+    if (F.EMBED) Settings.sound = false;   // no sound from a frame in the admin panel
     Music.init();
     Settings.apply();
     initChrome();
