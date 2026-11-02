@@ -93,3 +93,8 @@ Run on 25 Oct 2026 with Node 22 and headless Chromium (Playwright), against a lo
 
 - **Browser, local server with an in-memory KV:** 44/44 passed. Added click-to-edit for public and scenario text, Esc to cancel, page switching, preview with no new tab, and a page named like the admin frame getting no content.
 - **Preview:** the earlier new-tab version could not be reproduced as failing in real Chrome, so the cause of the live report is not confirmed. Preview no longer opens a tab at all.
+
+## Chair report and form fields (3 Nov 2026)
+
+- **Unit:** 61/61 passed. Added: visitors get nothing before release, admins get the exact bytes, a forged token is refused, the link only appears after release and is never written into the published document, non-PDF files are refused, and replacing or deleting the report removes its pieces.
+- **Browser, local server with an in-memory KV:** 47/47 passed. Added: upload and remove in the panel, and every form field has an id or name.

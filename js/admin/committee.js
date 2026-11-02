@@ -4,7 +4,7 @@
   'use strict';
   const { $, h, toast, Sound } = F;
   const A = F.Admin;
-  const { lbl, erow, efull, ecard, hint, esect, dbtn, abtn, tf, dd } = A.ui;
+  const { fieldAttrs, lbl, erow, efull, ecard, hint, esect, dbtn, abtn, tf, dd } = A.ui;
 
   let Comm = null; // { caucus, directives, kvReady }
   let open = false;
@@ -48,7 +48,7 @@
   const split = (ms, fallbackMin) => (ms ? [Math.floor(ms / 60000), Math.floor((ms % 60000) / 1000)] : [fallbackMin, 0]);
 
   function numberInput(value, max, onInput) {
-    const el = h('input', { class: 'input num-xs', type: 'number', min: '0', max: String(max), step: '1', value: String(value) });
+    const el = h('input', Object.assign(fieldAttrs(), { class: 'input num-xs', type: 'number', min: '0', max: String(max), step: '1', value: String(value) }));
     el.addEventListener('input', () => onInput(parseInt(el.value, 10) || 0));
     return el;
   }

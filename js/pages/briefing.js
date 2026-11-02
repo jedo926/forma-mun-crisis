@@ -10,6 +10,8 @@
       const v = showReleased(c); if (!v) return; v.innerHTML = '';
       const b = (c.briefing && typeof c.briefing === 'object') ? c.briefing : {};
       v.append(premise(c));
+      const report = arr(c.resources).find((r) => r && r.report);
+      if (report) v.append(h('p', { style: 'margin:0 0 22px' }, h('a', { class: 'btn mag', href: report.url, target: '_blank', rel: 'noopener', dataset: { chairReport: '' } }, 'READ THE CHAIR REPORT ▸')));
       v.append(h('div', { class: 'panel panel-neon', style: 'margin-bottom:22px' },
         h('span', { class: 'label cyan', text: 'TOPIC OVERVIEW' }),
         h('h2', { style: 'margin-top:14px', text: str(c.title, 200) || 'CRISIS BRIEFING' }),

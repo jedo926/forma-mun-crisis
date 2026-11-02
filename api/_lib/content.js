@@ -3,7 +3,7 @@
  * Files in api/ starting with "_" are not deployed as functions by Vercel.
  */
 const crypto = require('crypto');
-const { kvAvailable, kvGet, kvSet, kvHset, kvHvals } = require('./kv');
+const { kvAvailable, kvGet, kvSet, kvHset, kvHvals, kvDel } = require('./kv');
 
 const KEYS = {
   content: 'crisis:content',       // published scenario (base64 JSON), locked until release
@@ -11,6 +11,7 @@ const KEYS = {
   draft: 'crisis:draft',           // working copy: { savedAt, b64, site }, admin only
   updates: 'crisis:updates',       // hash of posted updates, one atomic write each
   site: 'site:public',             // public page text, visible before release
+  report: 'crisis:report',         // chair report details; the PDF itself is stored in pieces
   sitePrev: 'site:public:prev'
 };
 
@@ -134,8 +135,35 @@ function mergeUpdates(docUpdates, posted) {
 async function readContentFull(opts) {
   const result = await readPublished();
   if (!result.ok || (opts && opts.raw)) return result;
-  const content = Object.assign({}, result.content, { updates: mergeUpdates(result.content.updates, await readPostedUpdates()) });
-  return Object.assign({}, result, { content });
+  return Object.assign({}, result, { content: await withExtras(result.content, result.content.updates) });
+}
+
+/** A document as delegates see it: posted updates merged in, plus the chair report link. */
+async function withExtras(doc, docUpdates) {
+  const content = Object.assign({}, doc, { updates: mergeUpdates(docUpdates, await readPostedUpdates()) });
+  const meta = await readReportMeta();
+  if (meta) content.resources = (Array.isArray(doc.resources) ? doc.resources : []).concat({ title: 'Chair Report', type: 'PDF', url: 'api/report', note: '', report: true });
+  return content;
+}
+
+const reportPiece = (id, i) => `${KEYS.report}:${id}:${i}`;
+
+async function readReportMeta() {
+  if (!kvAvailable()) return null;
+  try { const m = parseMaybe(await kvGet(KEYS.report)); return m && m.id ? m : null; } catch (e) { return null; }
+}
+
+/** The PDF as a Buffer, or null if any piece is missing. */
+async function readReportData(meta) {
+  try {
+    const parts = await Promise.all(Array.from({ length: meta.total }, (_, i) => kvGet(reportPiece(meta.id, i))));
+    if (parts.some((p) => typeof p !== 'string')) return null;
+    return Buffer.from(parts.join(''), 'base64');
+  } catch (e) { return null; }
+}
+
+async function deleteReportPieces(meta) {
+  for (let i = 0; i < meta.total; i++) await kvDel(reportPiece(meta.id, i));
 }
 
 /** Save base64-encoded content to KV so it's instantly live. Returns true if saved. */
@@ -188,4 +216,4 @@ function publicLeaks(site, content) {
   return [...new Set(terms.filter((t) => text.includes(t.toLowerCase())))];
 }
 
-module.exports = { DEFAULT_RELEASE_AT, KEYS, send, encode, decodeDoc, releaseTime, readContent, readPublished, readContentFull, readPostedUpdates, mergeUpdates, migrateDocUpdates, readDraft, sanitizeSite, readSite, publicLeaks, saveContentToKV, validate };
+module.exports = { DEFAULT_RELEASE_AT, KEYS, send, encode, decodeDoc, releaseTime, readContent, readPublished, readContentFull, readPostedUpdates, mergeUpdates, migrateDocUpdates, readDraft, sanitizeSite, readSite, publicLeaks, saveContentToKV, validate, withExtras, reportPiece, readReportMeta, readReportData, deleteReportPieces };

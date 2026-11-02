@@ -94,7 +94,7 @@
         ' — saving, publishing, updates and committee controls need the Vercel KV store. Connect it under Project → Storage, then redeploy once.'));
     }
     $('[data-a="restore"]').disabled = !s.canRestore;
-    if (A.onStatus) A.onStatus(s);
+    if (A.renderReport) A.renderReport();
   }
 
   async function refresh() {

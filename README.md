@@ -47,6 +47,7 @@ js/
     updates.js      Post crisis updates
     site.js         Page text list
     committee.js    Live committee controls
+    report.js       Upload the chair report
     admin.js        Section switching (loads last)
   main.js           Boots the page (loads last)
 
@@ -55,6 +56,7 @@ api/
   admin.js        Admin login + status + pre-release preview + publish (password checked here)
   committee.js    Caucus state, speakers list and public directives
   site.js         Public page text (never holds scenario content)
+  report.js       Chair report PDF, locked until release
   _lib/content.js Shared helpers + content health check (not deployed as a function)
   _lib/auth.js    Session signing shared by the admin and committee endpoints
   _lib/kv.js      Vercel KV (Upstash REST) helper
@@ -102,6 +104,7 @@ The panel has one bar that is always visible, with **PREVIEW**, **SAVE DRAFT** a
 - **Status:** release state and countdown, content health check, and **Restore previous version** to undo a publish.
 - **More → All Fields:** everything as forms. Use this to add or remove characters, factions, events and other items, and to change fighter looks.
 - **More → Page Text List:** all public text in one searchable list.
+- **More → Chair Report:** upload or replace the chair report PDF. It names the scenario, so it stays in the private store, never in this repo. Visitors get a "not available" page until release, then it appears on the Briefing and Rules pages. Admins can open it any time.
 
 **Editing flow:** change things, press PREVIEW to check them, then PUBLISH. Preview opens inside the panel, shows your latest changes even if unsaved, and needs no pop-ups. Saved drafts are private and survive closing the browser.
 

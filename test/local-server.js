@@ -78,10 +78,10 @@ function serveStatic(root, req, res) {
 }
 
 const handlers = {};
-for (const name of ['release', 'admin', 'committee', 'site']) handlers[name] = require(path.join(ROOT, 'api', name + '.js'));
+for (const name of ['release', 'admin', 'committee', 'site', 'report']) handlers[name] = require(path.join(ROOT, 'api', name + '.js'));
 
 http.createServer(async (req, res) => {
-  const match = new URL(req.url, 'http://x').pathname.match(/^\/api\/(release|admin|committee|site)$/);
+  const match = new URL(req.url, 'http://x').pathname.match(/^\/api\/(release|admin|committee|site|report)$/);
   if (!match) { serveStatic(ROOT, req, res); return; }
   // Vercel parses JSON bodies before the handler runs; do the same.
   if (req.method === 'POST') {

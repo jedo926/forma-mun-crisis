@@ -662,4 +662,83 @@ describe('drafts, publishing, updates and public text — with KV', () => {
     await post('post-update', { title: 'New' });
     assert.ok((await publicRelease('?v=' + full.json.version)).json.content);
   });
+
+  describe('chair report', () => {
+    const report = require(path.join(root, 'api/report'));
+    const pdf = Buffer.concat([Buffer.from('%PDF-1.7 secret report body '), Buffer.alloc(9000, 65)]);
+    const b64pdf = pdf.toString('base64');
+    const SIZE = 4000;
+    const upload = async (id = 'rtest1') => {
+      const total = Math.ceil(b64pdf.length / SIZE);
+      for (let index = 0; index < total; index++) {
+        const r = await post('report-piece', { id, index, total, bytes: pdf.length, data: b64pdf.slice(index * SIZE, (index + 1) * SIZE) });
+        assert.strictEqual(r.json.ok, true);
+      }
+      return total;
+    };
+    const fetchReport = (headers) => run(report, { url: '/api/report', headers: headers || {} });
+
+    test('a visitor gets nothing before release, with no sign of the file', async () => {
+      await upload();
+      const r = await fetchReport();
+      assert.strictEqual(r.statusCode, 404);
+      assert.ok(!String(r.rawBody).includes('secret'));
+      assert.notStrictEqual(r.headers['Content-Type'], 'application/pdf');
+    });
+
+    test('an admin can open it before release, byte for byte', async () => {
+      await upload();
+      const r = await fetchReport({ authorization: 'Bearer ' + token });
+      assert.strictEqual(r.statusCode, 200);
+      assert.strictEqual(r.headers['Content-Type'], 'application/pdf');
+      assert.ok(Buffer.compare(Buffer.from(r.rawBody), pdf) === 0);
+    });
+
+    test('a forged token does not open it before release', async () => {
+      await upload();
+      assert.strictEqual((await fetchReport({ authorization: 'Bearer nope.nope' })).statusCode, 404);
+    });
+
+    test('anyone can open it after release, and the link appears then', async () => {
+      await post('publish', { b64: b64(doc('T')) });
+      await upload();
+      assert.strictEqual((await publicRelease()).json.content, undefined);
+      process.env.RELEASE_AT = '2020-01-01T00:00:00Z';
+      assert.strictEqual((await fetchReport()).statusCode, 200);
+      const links = (await publicRelease()).json.content.resources;
+      assert.deepStrictEqual(links.map((x) => x.url), ['api/report']);
+    });
+
+    test('the link never gets written into the published document', async () => {
+      await post('publish', { b64: b64(doc('T')) });
+      await upload();
+      assert.strictEqual((await get('action=content&raw=1')).json.content.resources, undefined);
+    });
+
+    test('a file that is not a PDF is refused', async () => {
+      const r = await post('report-piece', { id: 'rtest2', index: 0, total: 1, bytes: 3, data: Buffer.from('hello').toString('base64') });
+      assert.strictEqual(r.json.code, 'not_a_pdf');
+      assert.strictEqual((await get('action=status')).json.report, null);
+    });
+
+    test('nothing shows until the last piece arrives', async () => {
+      await post('report-piece', { id: 'rtest3', index: 0, total: 2, bytes: 9, data: b64pdf.slice(0, SIZE) });
+      assert.strictEqual((await get('action=status')).json.report, null);
+    });
+
+    test('replacing the report removes the old pieces, and it can be deleted', async () => {
+      const total = await upload('rtest4');
+      await upload('rtest5');
+      assert.strictEqual(kv.has('crisis:report:rtest4:0'), false);
+      assert.strictEqual((await get('action=status')).json.report.id, 'rtest5');
+      await post('delete-report');
+      assert.strictEqual(kv.has('crisis:report:rtest5:' + (total - 1)), false);
+      assert.strictEqual((await fetchReport({ authorization: 'Bearer ' + token })).statusCode, 404);
+    });
+
+    test('uploading needs a session', async () => {
+      const r = await run(admin, { method: 'POST', url: '/api/admin?action=report-piece', body: {} });
+      assert.strictEqual(r.statusCode, 401);
+    });
+  });
 });

@@ -3,6 +3,10 @@
   'use strict';
   const { h, arr } = F;
 
+  let fieldCount = 0;
+  /** Browsers want an id or name on every form field. These fields are rebuilt often, so number them. */
+  const fieldAttrs = () => { fieldCount += 1; return { id: 'field-' + fieldCount, name: 'field-' + fieldCount, autocomplete: 'off' }; };
+
   const lbl = (text) => h('span', { class: 'ed-lbl', text });
   const erow = (...kids) => h('div', { class: 'ed-row' }, ...kids);
   const efull = (...kids) => h('div', { class: 'ed-row ed-full' }, ...kids);
@@ -17,13 +21,13 @@
     return h('button', { class: 'btn ed-add', type: 'button', onclick: onClick }, '+ ' + label);
   }
   function tf(val, onInput, placeholder) {
-    const el = h('input', { class: 'input', type: 'text', placeholder: placeholder || '' });
+    const el = h('input', Object.assign(fieldAttrs(), { class: 'input', type: 'text', placeholder: placeholder || '' }));
     el.value = val || '';
     el.addEventListener('input', () => onInput(el.value));
     return el;
   }
   function ta(val, onInput, placeholder, cls) {
-    const el = h('textarea', { class: 'input ' + (cls || 'ta-sm'), placeholder: placeholder || '' });
+    const el = h('textarea', Object.assign(fieldAttrs(), { class: 'input ' + (cls || 'ta-sm'), placeholder: placeholder || '' }));
     el.value = val || '';
     el.addEventListener('input', () => onInput(el.value));
     return el;
@@ -32,7 +36,7 @@
   function dd(options, current, onChange) {
     const list = options.slice();
     if (current && !list.some(([v]) => v === current)) list.unshift([current, current]);
-    const el = h('select', { class: 'input dd-sm' });
+    const el = h('select', Object.assign(fieldAttrs(), { class: 'input dd-sm' }));
     list.forEach(([v, text]) => {
       const o = h('option', { value: v, text });
       if (v === current) o.selected = true;
@@ -42,13 +46,13 @@
     return el;
   }
   function cpick(val, onChange) {
-    const el = h('input', { class: 'cpick', type: 'color', 'aria-label': 'Pick a colour' });
+    const el = h('input', Object.assign(fieldAttrs(), { class: 'cpick', type: 'color', 'aria-label': 'Pick a colour' }));
     el.value = val || '#000000';
     el.addEventListener('input', () => onChange(el.value));
     return el;
   }
   function checkbox(label, checked, onChange) {
-    const cb = h('input', { type: 'checkbox' });
+    const cb = h('input', Object.assign(fieldAttrs(), { type: 'checkbox' }));
     cb.checked = !!checked;
     cb.addEventListener('change', () => onChange(cb.checked));
     return h('label', { class: 'cb-lbl' }, cb, ' ' + label);
@@ -75,5 +79,5 @@
     return node;
   }
 
-  F.Admin.ui = { lbl, erow, efull, ecard, hint, esect, dbtn, abtn, tf, ta, dd, cpick, checkbox, paras, setOrClear, fold };
+  F.Admin.ui = { fieldAttrs, lbl, erow, efull, ecard, hint, esect, dbtn, abtn, tf, ta, dd, cpick, checkbox, paras, setOrClear, fold };
 })(window.FORMA = window.FORMA || {});
