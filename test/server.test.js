@@ -2,7 +2,7 @@
  * Server-side unit tests — run with:
  *   node --test test/server.test.js
  *
- * Covers: auth helpers, content read, admin login, admin publish.
+ * Covers: auth helpers, content read, admin login, drafts, publish, restore, updates, public text.
  * No external network calls — KV is mocked via env vars absent by default.
  */
 'use strict';
@@ -333,19 +333,17 @@ describe('admin handler — login + status + content', () => {
   });
 
   // ── Publish ──
-  test('publish without KV or deploy-hook returns ok + deployed:false', async () => {
+  test('publish without KV returns 503 kv_required', async () => {
     const token = await getToken();
-    const obj = { title: 'Publish Test', characters: [] };
-    const b64 = Buffer.from(JSON.stringify(obj)).toString('base64');
+    const b64 = Buffer.from(JSON.stringify({ title: 'Publish Test', characters: [] })).toString('base64');
     const r = await call({
       method: 'POST',
       url: '/api/admin?action=publish',
       headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
       body: { b64 }
     });
-    assert.strictEqual(r.statusCode, 200);
-    assert.strictEqual(r.json.ok, true);
-    assert.strictEqual(r.json.deployed, false);
+    assert.strictEqual(r.statusCode, 503);
+    assert.strictEqual(r.json.code, 'kv_required');
   });
 
   test('publish without token returns 401', async () => {
@@ -497,5 +495,171 @@ describe('committee handler — with KV', () => {
     await post('speaker', { op: 'remove', index: c.currentSpeakerIdx });   // remove B, the current one
     c = (await call({ method: 'GET', url: '/api/committee' })).json.caucus;
     assert.strictEqual(c.currentSpeakerIdx, -1);
+  });
+});
+
+describe('drafts, publishing, updates and public text — with KV', () => {
+  const admin = require(path.join(root, 'api/admin'));
+  const release = require(path.join(root, 'api/release'));
+  const site = require(path.join(root, 'api/site'));
+  const { sign } = require(path.join(root, 'api/_lib/auth'));
+  const realFetch = global.fetch;
+  const b64 = (o) => Buffer.from(JSON.stringify(o), 'utf8').toString('base64');
+  const doc = (title) => ({ title, characters: [{ id: 'mlk', name: 'Secret Name' }], updates: [] });
+  const saved = {};
+  let kv;
+  let token;
+
+  const run = async (handler, opts) => { const r = res(); await handler(req(opts), r); return r; };
+  const post = (action, body) => run(admin, { method: 'POST', url: '/api/admin?action=' + action, headers: { authorization: 'Bearer ' + token }, body: body || {} });
+  const get = (query) => run(admin, { url: '/api/admin?' + query, headers: { authorization: 'Bearer ' + token } });
+  const publicRelease = (q) => run(release, { url: '/api/release' + (q || '') });
+
+  beforeEach(() => {
+    kv = new Map();
+    for (const k of ['RELEASE_AT', 'CRISIS_CONTENT', 'CRISIS_CONTENT_B64', 'VERCEL']) { saved[k] = process.env[k]; delete process.env[k]; }
+    process.env.ADMIN_USERNAME = 'testadmin';
+    process.env.ADMIN_PASSWORD = 'testpass99';
+    process.env.ADMIN_SESSION_SECRET = 'test-secret-for-unit-tests';
+    process.env.KV_REST_API_URL = 'http://kv.test';
+    process.env.KV_REST_API_TOKEN = 't';
+    process.env.RELEASE_AT = '2099-01-01T00:00:00Z';
+    token = sign({ sub: 'admin', exp: Date.now() + 60000 });
+    global.fetch = async (_url, opts) => {
+      const [cmd, key, x, y] = JSON.parse(opts.body);
+      const hash = kv.get(key) || new Map();
+      let result = null;
+      if (cmd === 'GET') result = kv.has(key) ? kv.get(key) : null;
+      if (cmd === 'SET') { kv.set(key, x); result = 'OK'; }
+      if (cmd === 'DEL') result = kv.delete(key) ? 1 : 0;
+      if (cmd === 'HSET') { hash.set(x, y); kv.set(key, hash); result = 1; }
+      if (cmd === 'HDEL') result = hash.delete(x) ? 1 : 0;
+      if (cmd === 'HGETALL') result = [...hash.entries()].flat();
+      return { ok: true, json: async () => ({ result }) };
+    };
+  });
+  test.afterEach(() => {
+    for (const k of Object.keys(saved)) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; }
+  });
+  test.after(() => {
+    global.fetch = realFetch;
+    delete process.env.KV_REST_API_URL;
+    delete process.env.KV_REST_API_TOKEN;
+  });
+
+  test('every new admin action refuses a request without a session', async () => {
+    for (const action of ['save-draft', 'discard-draft', 'publish', 'restore', 'post-update', 'delete-update']) {
+      const r = await run(admin, { method: 'POST', url: '/api/admin?action=' + action, body: {} });
+      assert.strictEqual(r.statusCode, 401, action);
+    }
+    for (const query of ['action=updates', 'action=content&draft=1']) {
+      assert.strictEqual((await run(admin, { url: '/api/admin?' + query })).statusCode, 401, query);
+    }
+  });
+
+  test('a saved draft is visible to the admin and never to the public', async () => {
+    await post('publish', { b64: b64(doc('Published')) });
+    const saveRes = await post('save-draft', { b64: b64(doc('Draft version')), site: {} });
+    assert.strictEqual(saveRes.json.ok, true);
+    const draft = await get('action=content&draft=1');
+    assert.strictEqual(draft.json.content.title, 'Draft version');
+    assert.strictEqual(draft.json.fromDraft, true);
+    assert.strictEqual((await get('action=content')).json.content.title, 'Published');
+    process.env.RELEASE_AT = '2020-01-01T00:00:00Z';
+    assert.strictEqual((await publicRelease()).json.content.title, 'Published');
+  });
+
+  test('nothing reaches the public before release, whatever has been published', async () => {
+    await post('publish', { b64: b64(doc('Secret title')) });
+    await post('post-update', { title: 'Secret update', detail: 'x' });
+    const r = await publicRelease();
+    assert.strictEqual(r.json.status, 'locked');
+    assert.ok(!r.rawBody.includes('Secret'));
+    assert.strictEqual(r.json.content, undefined);
+  });
+
+  test('publish clears the draft and restore brings the previous version back', async () => {
+    await post('publish', { b64: b64(doc('First')) });
+    await post('save-draft', { b64: b64(doc('Second')), site: {} });
+    await post('publish', { b64: b64(doc('Second')) });
+    assert.strictEqual((await get('action=status')).json.draft, null);
+    assert.strictEqual((await get('action=status')).json.canRestore, true);
+    assert.strictEqual((await post('restore')).json.ok, true);
+    assert.strictEqual((await get('action=content')).json.content.title, 'First');
+    await post('restore');
+    assert.strictEqual((await get('action=content')).json.content.title, 'Second');
+  });
+
+  test('restore with nothing to restore returns 404', async () => {
+    assert.strictEqual((await post('restore')).statusCode, 404);
+  });
+
+  test('publish rejects a document that is not a JSON object', async () => {
+    const r = await post('publish', { b64: Buffer.from('[1,2]').toString('base64') });
+    assert.strictEqual(r.statusCode, 400);
+    assert.strictEqual(r.json.code, 'invalid_content');
+  });
+
+  test('posted updates are locked until release, then appear newest first', async () => {
+    await post('publish', { b64: b64(doc('T')) });
+    const first = await post('post-update', { title: 'Older', priority: 'high', time: '2026-01-01T00:00:00Z' });
+    assert.strictEqual(first.json.held, true);
+    await post('post-update', { title: 'Newer', time: '2026-06-01T00:00:00Z' });
+    process.env.RELEASE_AT = '2020-01-01T00:00:00Z';
+    assert.deepStrictEqual((await publicRelease()).json.content.updates.map((u) => u.title), ['Newer', 'Older']);
+  });
+
+  test('a stale editor publish cannot erase posted updates', async () => {
+    await post('publish', { b64: b64(doc('T')) });
+    await post('post-update', { title: 'Posted after the editor opened' });
+    await post('publish', { b64: b64(Object.assign(doc('T2'), { updates: [{ title: 'old copy', time: '2020-01-01T00:00:00Z' }] })) });
+    const titles = (await get('action=updates')).json.updates.map((u) => u.title);
+    assert.deepStrictEqual(titles, ['Posted after the editor opened']);
+  });
+
+  test('an update stored inside the document can be deleted on its own', async () => {
+    await post('publish', { b64: b64(Object.assign(doc('T'), { updates: [{ title: 'Seeded', time: '2026-01-01T00:00:00Z', priority: 'high' }] })) });
+    const list = (await get('action=updates')).json.updates;
+    assert.strictEqual(list.length, 1);
+    await post('delete-update', { id: list[0].id });
+    assert.strictEqual((await get('action=updates')).json.updates.length, 0);
+  });
+
+  test('editing an update replaces it instead of adding another', async () => {
+    const made = await post('post-update', { title: 'First wording' });
+    await post('post-update', { id: made.json.update.id, title: 'Corrected wording' });
+    assert.deepStrictEqual((await get('action=updates')).json.updates.map((u) => u.title), ['Corrected wording']);
+  });
+
+  test('post-update needs a headline and defaults a bad priority', async () => {
+    assert.strictEqual((await post('post-update', { title: '  ' })).json.code, 'missing_title');
+    assert.strictEqual((await post('post-update', { title: 'x', priority: 'nope' })).json.update.priority, 'medium');
+  });
+
+  test('public text is served before release, and only with valid keys', async () => {
+    await post('publish', { b64: b64(doc('T')), site: { 'rules.intro': 'Hello', 'BAD KEY': 'no', 'rules.blank': '  ', 'rules.number': 5 } });
+    const r = await run(site, { url: '/api/site' });
+    assert.deepStrictEqual(r.json.site, { 'rules.intro': 'Hello' });
+  });
+
+  test('public text naming the scenario is refused until confirmed', async () => {
+    const body = { b64: b64(doc('Hidden Title')), site: { 'rules.intro': 'Meet secret name today' } };
+    const blocked = await post('publish', body);
+    assert.strictEqual(blocked.statusCode, 409);
+    assert.deepStrictEqual(blocked.json.leaks, ['Secret Name']);
+    assert.deepStrictEqual((await run(site, { url: '/api/site' })).json.site, {});
+    assert.strictEqual((await post('publish', Object.assign({ confirmPublic: true }, body))).json.ok, true);
+  });
+
+  test('a page holding the current version gets no download', async () => {
+    process.env.RELEASE_AT = '2020-01-01T00:00:00Z';
+    await post('publish', { b64: b64(doc('T')) });
+    const full = await publicRelease();
+    assert.ok(full.json.content);
+    const same = await publicRelease('?v=' + full.json.version);
+    assert.strictEqual(same.json.unchanged, true);
+    assert.strictEqual(same.json.content, undefined);
+    await post('post-update', { title: 'New' });
+    assert.ok((await publicRelease('?v=' + full.json.version)).json.content);
   });
 });

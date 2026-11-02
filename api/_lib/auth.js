@@ -44,13 +44,13 @@ function clientIp(req) {
   return xf || (req.socket && req.socket.remoteAddress) || 'unknown';
 }
 
-async function readBody(req) {
+async function readBody(req, limit = 20000) {
   if (req.body && typeof req.body === 'object') return req.body;
   if (typeof req.body === 'string') { try { return JSON.parse(req.body); } catch (e) { return {}; } }
   return new Promise((resolve) => {
-    let data = '';
-    req.on('data', (c) => { data += c; if (data.length > 20000) req.destroy(); });
-    req.on('end', () => { try { resolve(JSON.parse(data || '{}')); } catch (e) { resolve({}); } });
+    let data = '', over = false;
+    req.on('data', (c) => { if (over) return; data += c; if (data.length > limit) { over = true; resolve({}); req.destroy(); } });
+    req.on('end', () => { if (over) return; try { resolve(JSON.parse(data || '{}')); } catch (e) { resolve({}); } });
     req.on('error', () => resolve({}));
   });
 }

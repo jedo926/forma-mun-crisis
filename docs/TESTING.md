@@ -48,7 +48,7 @@ Run on 25 Oct 2026 with Node 22 and headless Chromium (Playwright), against a lo
 - Home has 12 "?" slots.
 - Clicking a slot picks P1, and the CPU rolls a rival.
 - Arrow keys move between slots.
-- PRESS START opens the 9-item menu; Esc closes it.
+- PRESS START opens the menu; Esc closes it.
 - M toggles sound; FX switches to reduced effects.
 - Nav links work, with the page transition, and so does browser Back.
 
@@ -81,3 +81,10 @@ Run on 25 Oct 2026 with Node 22 and headless Chromium (Playwright), against a lo
 - **Browser, local server with an in-memory KV:** 45/45 passed. This covers publishing, Unicode, the failed-load publish guard, the full caucus lifecycle, the delegate code, 20 simultaneous directives, a KV read failure, a wrong device clock and the unpublished-changes warnings.
 - **Release moment:** a page open before the deadline stayed locked with no content in the response, then flipped by itself and played the reveal.
 - **Live site:** the read-only Playwright suite passed, and published content matched the private master exactly.
+
+## Admin rebuild, preview and release pass (2 Nov 2026)
+
+- **Unit:** 52/52 passed (`npm run test:unit`). Added: every new admin action refuses a request with no session, drafts never reach the public, nothing reaches the public before release, restore, posted updates stay locked and survive a stale editor, public text validation and the scenario-name guard, and version checks.
+- **Browser, local server with an in-memory KV:** 36/36 passed (`npm run test:local`).
+- **With the real scenario, on a local server:** an unsaved edit appeared in the preview; preview stayed on through the home card, nav, menu and reload; a publish with no edits matched the master exactly in the earlier pass; the rebuilt site matched the FULL build on every shared page and all 22 dossiers, apart from the real chair bios.
+- **Release moment, local:** an open page flipped by itself and played the reveal; a visitor on the Home intro got the reveal after the intro closed; a late visitor saw it once.

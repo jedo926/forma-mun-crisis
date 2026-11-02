@@ -48,7 +48,7 @@
         const btn = $('[data-power="sound"]', intro) || $('[data-intro-enter]', intro); if (btn) btn.focus();
       }
     }
-    function afterIntro() { const t = $('.tile[aria-selected="true"]') || $('.tile'); if (t) t.focus({ preventScroll: true }); }
+    function afterIntro() { F.emit('forma:intro-closed'); const t = $('.tile[aria-selected="true"]') || $('.tile'); if (t) t.focus({ preventScroll: true }); }
 
     // ---- Arena ----
     const canvas = $('#stage');

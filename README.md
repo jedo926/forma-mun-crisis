@@ -1,6 +1,6 @@
 # FORMA MUN · Crisis Division
 
-A 16-bit arcade, cyberpunk crisis-committee website. It is plain HTML, CSS and vanilla JavaScript, with no framework and no build step. It deploys as a static site on Vercel plus three small serverless functions: one releases the secret scenario at the right moment, one runs the admin panel, and one runs live committee proceedings. Published content and committee data live in a Vercel KV store.
+A 16-bit arcade, cyberpunk crisis-committee website. It is plain HTML, CSS and vanilla JavaScript, with no framework and no build step. It deploys as a static site on Vercel plus four small serverless functions: one releases the secret scenario at the right moment, one runs the admin panel, one runs live committee proceedings, and one serves editable public page text. Published content and committee data live in a Vercel KV store.
 
 **Release time:** 7 January 2027, 22:00 Riyadh (`2027-01-07T22:00:00+03:00`).
 
@@ -26,6 +26,7 @@ css/
 js/
   core/config.js    Settings + SITE MAP (nav, menu, page list). Edit pages/nav here.
   core/util.js      DOM helpers, storage, events, time formatting
+  core/sitecopy.js  Applies editable page text (anything tagged data-edit)
   core/audio.js     Sound settings, sound effects (files + synthesized), background music
   core/release.js   Talks to /api/release; demo mode; admin preview mode
   core/status.js    Countdown + status bar
@@ -37,13 +38,22 @@ js/
   game/characters.js Default fighters (chairs), "?" silhouettes, released roster
   game/arena.js     Attract mode + the playable fighting/debate game
   pages/*.js        One module per page
-  admin/admin.js    Admin control room
+  admin/            Admin control room, one module per job:
+    api.js          Server calls + shared state (F.Admin)
+    fields.js       Form building blocks
+    dashboard.js    Login, session, release status, health check, restore
+    editor.js       Scenario editor + save draft / preview / publish
+    updates.js      Post crisis updates
+    site.js         Page text editor
+    committee.js    Live committee controls
+    admin.js        Section switching (loads last)
   main.js           Boots the page (loads last)
 
 api/
   release.js      Public release endpoint (checks the server clock)
   admin.js        Admin login + status + pre-release preview + publish (password checked here)
   committee.js    Caucus state, speakers list and public directives
+  site.js         Public page text (never holds scenario content)
   _lib/content.js Shared helpers + content health check (not deployed as a function)
   _lib/auth.js    Session signing shared by the admin and committee endpoints
   _lib/kv.js      Vercel KV (Upstash REST) helper
@@ -83,10 +93,22 @@ To preview what the released site looks like with **placeholder data**, add `?de
 
 The admin panel is not linked in the nav. Open `https://<your-site>/admin.html` and log in.
 
-- **What it shows:** live release state and countdown, server time, whether the content variable is set and valid, a count of characters, factions and so on, and a health check that flags mistakes such as an unknown faction member or a bad special-move type.
-- **Preview released site:** lets you see the whole site exactly as it will look after release, before release. Only a logged-in admin sees it; visitors get nothing.
-- **Content editor:** edit everything in tabs, no JSON needed, then press **PUBLISH CHANGES**. It is live immediately, with no redeploy.
-- **Committee tab:** set up and run caucuses, manage the speakers list, read and delete directives. It saves as you go. The delegate code is shown here.
+The panel has one bar that is always visible, with **SAVE DRAFT**, **PREVIEW** and **PUBLISH**, and these sections:
+
+- **Overview:** live release state and countdown, server time, content size, a count of everything, a health check that flags mistakes, and **Restore previous version** to undo a publish.
+- **Post Updates:** write a crisis update and post it. Before release, updates are held privately and appear at the reveal. After release, they reach every open page within 30 seconds, with a "new update" notice. Updates are stored separately, so posting one never touches anything else, and an editor left open can't overwrite them.
+- **Scenario:** edit everything behind the lock, in tabs: general, characters, factions, timeline, locations, intel, resources.
+- **Page Text:** edit the public text on every page: rules, chair bios, home text, headings. **This is visible to everyone as soon as you publish, even before release**, so the panel asks you to confirm if it contains a scenario title or a character or faction name.
+- **Committee:** set up and run caucuses, manage the speakers list, read and delete directives. It saves as you go. The delegate code is shown here.
+- **Preview:** see the whole site as it will look after release. Unsaved changes are saved as a draft first, so the preview always shows your latest work.
+
+**Editing flow:** change things, press PREVIEW to check them, then PUBLISH. Drafts are private and survive closing the browser. Before release, publishing scenario content stays locked. After release, it's live immediately.
+
+**In the preview** a bar stays on top of every page. **DRAFT** shows your unpublished changes, **PUBLISHED** shows what's saved for release, **LOCKED** shows what visitors see now, and **PLAY REVEAL** runs the opening. **EXIT** returns to the normal site. Preview stays on for that tab across every link and reload, and it only works while logged in.
+
+**Making new text editable:** add `data-edit="page.some-key"` to the element in the page's HTML. It appears in Page Text by itself.
+
+**The release time** is not editable in the panel, on purpose: one wrong click could reveal the scenario. See "Changing the release time".
 
 **Security:** the username and password are **only** in Vercel environment variables. They never appear in the site code, so nobody can find them with Inspect.
 - The server checks them in constant time.
@@ -167,9 +189,10 @@ Each character's special move comes from `special` in the content JSON: `{ "name
 
 - **Text, layout, styles:** edit the page's HTML or the matching CSS module, then commit and push. Vercel redeploys automatically.
 - **Nav or page list:** edit `NAV` in `js/core/config.js`. The header, nav and home menu all update from it.
-- **Chair bios:** edit the placeholder paragraphs in `chairs.html` (search for `EDIT:`).
+- **Chair bios:** edit them in the admin panel's Page Text section.
 - **Chair portraits:** replace `assets/images/tamer-pixel.png` / `mutasim-pixel.png` (572×686 recommended). A labelled fallback shows if a file is missing.
-- **Crisis updates after release:** add them in the admin panel's UPDATES tab and press PUBLISH CHANGES. Open pages pick up changes within ~5 minutes. This is a refresh, not a live stream.
+- **Crisis updates:** post them in the admin panel's Post Updates section. After release, open pages show them within 30 seconds.
+- **Any public text:** edit it in the admin panel's Page Text section, no code needed.
 - **Number of "?" slots before release:** `CONFIG.lockedSlots` in `js/core/config.js`. It is display-only and doesn't reveal the real roster size.
 
 ## Controls
@@ -197,11 +220,13 @@ There are two harmless easter eggs. One involves a very famous cheat code.
 ## Testing
 
 ```
-npm run test:unit                  # no network needed
-E2E_ADMIN_USER=… E2E_ADMIN_PASS=… npx playwright test
+npm run test:unit    # no network needed
+npm run test:local   # the full browser suite, including writes, on a local server with a fake KV
 ```
 
-The browser suite runs against the live site by default (`E2E_BASE_URL` changes that) and skips anything that writes data unless `E2E_ALLOW_WRITES=1` is set. Keep it that way: preview deployments share the production KV store, so writing on a preview changes live data. Never put real credentials in a test file. This repo is public.
+To try the site yourself, run `node test/local-server.js` and open http://127.0.0.1:4801/admin.html (login `local-admin` / `local-password`). It uses placeholder content and never connects to anything real. Set `LOCAL_RELEASE_AT` to a time a minute away to rehearse the release moment.
+
+`npx playwright test` on its own runs read-only checks against the live site. Test writes only on the local server: Vercel preview deployments share the production KV store, so writing on a preview changes live data. Never put real credentials in a test file. This repo is public.
 
 ## Before you go live: checklist
 

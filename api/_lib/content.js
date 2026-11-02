@@ -2,7 +2,17 @@
  * Shared server-side helpers for the release and admin endpoints.
  * Files in api/ starting with "_" are not deployed as functions by Vercel.
  */
-const { kvAvailable, kvGet, kvSet } = require('./kv');
+const crypto = require('crypto');
+const { kvAvailable, kvGet, kvSet, kvHset, kvHvals } = require('./kv');
+
+const KEYS = {
+  content: 'crisis:content',       // published scenario (base64 JSON), locked until release
+  prev: 'crisis:content:prev',     // previous published scenario, for one-step restore
+  draft: 'crisis:draft',           // working copy: { savedAt, b64, site }, admin only
+  updates: 'crisis:updates',       // hash of posted updates, one atomic write each
+  site: 'site:public',             // public page text, visible before release
+  sitePrev: 'site:public:prev'
+};
 
 const DEFAULT_RELEASE_AT = '2027-01-07T22:00:00+03:00'; // 22:00 Riyadh
 
@@ -74,11 +84,22 @@ function validate(c) {
   };
 }
 
-/** Async read — checks KV first so published content is live without redeployment. */
-async function readContentFull() {
+const encode = (obj) => Buffer.from(JSON.stringify(obj), 'utf8').toString('base64');
+const parseMaybe = (v) => { if (typeof v !== 'string') return v; try { return JSON.parse(v); } catch (e) { return null; } };
+
+/** Decode a base64 JSON document. Returns null unless it is a plain object. */
+function decodeDoc(b64) {
+  try {
+    const doc = JSON.parse(Buffer.from(String(b64), 'base64').toString('utf8'));
+    return doc && typeof doc === 'object' && !Array.isArray(doc) ? doc : null;
+  } catch (e) { return null; }
+}
+
+/** The stored scenario document, exactly as published (KV first, then env var). */
+async function readPublished() {
   if (kvAvailable()) {
     try {
-      const b64 = await kvGet('crisis:content');
+      const b64 = await kvGet(KEYS.content);
       if (b64 && typeof b64 === 'string') {
         const raw = Buffer.from(b64, 'base64').toString('utf8');
         if (raw && raw.trim()) {
@@ -93,11 +114,78 @@ async function readContentFull() {
   return readContent();
 }
 
+const updateId = (u) => 'u' + crypto.createHash('sha1').update(String(u.time) + '|' + String(u.title)).digest('hex').slice(0, 12);
+
+/** Posted updates from KV. Never throws: a KV failure must not take the release down. */
+async function readPostedUpdates() {
+  if (!kvAvailable()) return [];
+  try { return (await kvHvals(KEYS.updates)).map(parseMaybe).filter((u) => u && u.id); } catch (e) { return []; }
+}
+
+/** Newest first. Items already inside the document get a stable id so they can be managed. */
+function mergeUpdates(docUpdates, posted) {
+  const byId = new Map();
+  (Array.isArray(docUpdates) ? docUpdates : []).forEach((u) => { if (u) { const id = u.id || updateId(u); byId.set(id, Object.assign({}, u, { id })); } });
+  posted.forEach((u) => byId.set(u.id, u));
+  return [...byId.values()].sort((a, b) => (Date.parse(b.time) || 0) - (Date.parse(a.time) || 0));
+}
+
+/** Published scenario plus posted updates. Pass { raw: true } for the document alone (editor use). */
+async function readContentFull(opts) {
+  const result = await readPublished();
+  if (!result.ok || (opts && opts.raw)) return result;
+  const content = Object.assign({}, result.content, { updates: mergeUpdates(result.content.updates, await readPostedUpdates()) });
+  return Object.assign({}, result, { content });
+}
+
 /** Save base64-encoded content to KV so it's instantly live. Returns true if saved. */
 async function saveContentToKV(b64) {
   if (!kvAvailable()) return false;
-  await kvSet('crisis:content', b64);
+  await kvSet(KEYS.content, b64);
   return true;
 }
 
-module.exports = { DEFAULT_RELEASE_AT, send, releaseTime, readContent, readContentFull, saveContentToKV, validate };
+/** Move updates stored inside the document into the hash, once, so each can be deleted on its own. */
+async function migrateDocUpdates() {
+  const cur = await readPublished();
+  const list = cur.ok && Array.isArray(cur.content.updates) ? cur.content.updates : [];
+  if (!list.length) return;
+  for (const u of list) { if (u) { const id = u.id || updateId(u); await kvHset(KEYS.updates, id, JSON.stringify(Object.assign({}, u, { id }))); } }
+  await saveContentToKV(encode(Object.assign({}, cur.content, { updates: [] })));
+}
+
+async function readDraft() {
+  if (!kvAvailable()) return null;
+  try {
+    const d = parseMaybe(await kvGet(KEYS.draft));
+    return d && d.b64 ? d : null;
+  } catch (e) { return null; }
+}
+
+const SITE_KEY = /^[a-z0-9-]+\.[a-z0-9-]+$/;
+/** Public text map: known key shape, strings only, bounded. Blank values fall back to the page's HTML. */
+function sanitizeSite(v) {
+  const out = {};
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  Object.keys(v).slice(0, 600).forEach((k) => {
+    if (SITE_KEY.test(k) && typeof v[k] === 'string' && v[k].trim()) out[k] = v[k].slice(0, 4000);
+  });
+  return out;
+}
+
+async function readSite() {
+  if (!kvAvailable()) return {};
+  try { return sanitizeSite(parseMaybe(await kvGet(KEYS.site))); } catch (e) { return {}; }
+}
+
+/** Scenario terms that appear in public text. Public text is visible before release. */
+function publicLeaks(site, content) {
+  const c = content && typeof content === 'object' ? content : {};
+  const arr = (v) => (Array.isArray(v) ? v : []);
+  const terms = [c.title, ...arr(c.characters).map((x) => x && x.name), ...arr(c.factions).map((x) => x && x.name)]
+    .filter((t) => typeof t === 'string' && t.trim().length >= 6).map((t) => t.trim());
+  const text = Object.values(site).join('\n').toLowerCase();
+  return [...new Set(terms.filter((t) => text.includes(t.toLowerCase())))];
+}
+
+module.exports = { DEFAULT_RELEASE_AT, KEYS, send, encode, decodeDoc, releaseTime, readContent, readPublished, readContentFull, readPostedUpdates, mergeUpdates, migrateDocUpdates, readDraft, sanitizeSite, readSite, publicLeaks, saveContentToKV, validate };

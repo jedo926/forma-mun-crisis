@@ -2,17 +2,29 @@
  * FORMA MUN · Crisis Division — admin endpoint (Vercel Node.js function).
  *
  * Credentials live ONLY in server-side environment variables, never in the site code:
- *   ADMIN_USERNAME         e.g. TCadmin
- *   ADMIN_PASSWORD         the admin password
- *   ADMIN_SESSION_SECRET   long random string used to sign sessions (recommended)
+ *   ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_SESSION_SECRET
  *
- * POST /api/admin?action=login   body { username, password }  → { token, expiresAt }
- * GET  /api/admin?action=status  (Authorization: Bearer <token>) → release status + content health
- * GET  /api/admin?action=content (Authorization: Bearer <token>) → full content (pre-release preview)
+ * POST /api/admin?action=login         { username, password } → { token, expiresAt }
+ * Everything below needs Authorization: Bearer <token>
+ * GET  ?action=status                  release state + content health + draft state
+ * GET  ?action=content                 published scenario + public text (preview)
+ * GET  ?action=content&draft=1         the saved draft instead, if there is one
+ * GET  ?action=content&raw=1           document only, without posted updates (editor)
+ * POST ?action=save-draft              { b64, site }   private until published
+ * POST ?action=discard-draft
+ * POST ?action=publish                 { b64, site, confirmPublic }
+ * POST ?action=restore                 swap back to the previous published version
+ * GET  ?action=updates
+ * POST ?action=post-update             { id?, title, detail, priority, time? }
+ * POST ?action=delete-update           { id }
  */
 const crypto = require('crypto');
-const { send, releaseTime, readContentFull, saveContentToKV, validate } = require('./_lib/content');
-const { kvAvailable } = require('./_lib/kv');
+const {
+  KEYS, send, encode, decodeDoc, releaseTime, readPublished, readContentFull, readPostedUpdates, mergeUpdates,
+  migrateDocUpdates, readDraft, sanitizeSite, readSite, publicLeaks, saveContentToKV, validate
+} = require('./_lib/content');
+const { kvAvailable, kvGet, kvSet, kvDel, kvHset, kvHdel } = require('./_lib/kv');
+const { readBody } = require('./_lib/auth');
 
 const SESSION_MS = 8 * 60 * 60 * 1000;      // 8 hours
 const MAX_FAILS = 5, WINDOW_MS = 15 * 60 * 1000;
@@ -43,17 +55,11 @@ function clientIp(req) {
   const xf = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
   return xf || (req.socket && req.socket.remoteAddress) || 'unknown';
 }
-async function readBody(req) {
-  if (req.body && typeof req.body === 'object') return req.body;
-  if (typeof req.body === 'string') { try { return JSON.parse(req.body); } catch (e) { return {}; } }
-  return new Promise((resolve) => {
-    let data = ''; req.on('data', (c) => { data += c; if (data.length > 10000) req.destroy(); });
-    req.on('end', () => { try { resolve(JSON.parse(data || '{}')); } catch (e) { resolve({}); } });
-    req.on('error', () => resolve({}));
-  });
-}
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const NO_INDEX = { 'X-Robots-Tag': 'noindex, nofollow' };
+const MAX_B64 = 128 * 1024;
+const MAX_BODY = 400 * 1024;
+const PRIORITIES = ['critical', 'high', 'medium', 'low'];
 
 async function handler(req, res) {
   const url = new URL(req.url, 'http://x');
@@ -71,7 +77,7 @@ async function handler(req, res) {
     if (rec && now - rec.first < WINDOW_MS && rec.n >= MAX_FAILS) {
       return send(res, 429, { status: 'error', code: 'too_many_attempts', retryInSec: Math.ceil((WINDOW_MS - (now - rec.first)) / 1000) }, NO_INDEX);
     }
-    const body = await readBody(req);
+    const body = await readBody(req, 10000);
     const okUser = safeEqual(String(body.username || ''), process.env.ADMIN_USERNAME);
     const okPass = safeEqual(String(body.password || ''), process.env.ADMIN_PASSWORD);
     if (!(okUser && okPass)) {
@@ -90,73 +96,132 @@ async function handler(req, res) {
   const session = verify(auth.startsWith('Bearer ') ? auth.slice(7) : '');
   if (!session) return send(res, 401, { status: 'error', code: 'unauthorized' }, NO_INDEX);
 
-  if (action === 'publish') {
-    if (req.method !== 'POST') return send(res, 405, { status: 'error', code: 'method_not_allowed' }, NO_INDEX);
-    const body = await readBody(req);
-    const { b64 } = body;
-    if (!b64 || typeof b64 !== 'string' || b64.length > 128 * 1024) {
-      return send(res, 400, { status: 'error', code: 'missing_b64' }, NO_INDEX);
-    }
-    // KV path: instant update, no redeploy needed.
-    const kvSaved = await saveContentToKV(b64);
-    if (kvSaved) {
-      return send(res, 200, { ok: true, deployed: true, instant: true }, NO_INDEX);
+  const fail = (code, status = 400) => send(res, status, { status: 'error', code }, NO_INDEX);
+  const releaseMs = releaseTime();
+  const released = releaseMs !== null && Date.now() >= releaseMs;
+  const asText = (v) => (typeof v === 'string' ? v : JSON.stringify(v));
+
+  if (req.method === 'POST') {
+    if (!['save-draft', 'discard-draft', 'publish', 'restore', 'post-update', 'delete-update'].includes(action)) return fail('unknown_action');
+    const body = await readBody(req, MAX_BODY);
+    const b64 = body.b64;
+    if ((action === 'save-draft' || action === 'publish') && (!b64 || typeof b64 !== 'string' || b64.length > MAX_B64)) return fail('missing_b64');
+    if (!kvAvailable()) return fail('kv_required', 503);
+
+    if (action === 'save-draft') {
+      if (!decodeDoc(b64)) return fail('invalid_content');
+      const savedAt = new Date().toISOString();
+      await kvSet(KEYS.draft, JSON.stringify({ savedAt, b64, site: sanitizeSite(body.site) }));
+      return send(res, 200, { ok: true, savedAt }, NO_INDEX);
     }
 
-    // Fallback: update env var + trigger deploy hook (requires manual setup).
-    const vercelToken = process.env.VERCEL_API_TOKEN;
-    const projectId   = process.env.VERCEL_PROJECT_ID;
-    const deployHook  = process.env.VERCEL_DEPLOY_HOOK;
-    if (vercelToken && projectId) {
-      try {
-        const listRes = await fetch(
-          `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}/env?limit=100`,
-          { headers: { Authorization: `Bearer ${vercelToken}` } }
-        );
-        const listData = await listRes.json();
-        const envVar = (listData.envs || []).find(e => e.key === 'CRISIS_CONTENT_B64');
-        if (envVar && envVar.id) {
-          await fetch(
-            `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}/env/${envVar.id}`,
-            { method: 'PATCH', headers: { Authorization: `Bearer ${vercelToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ value: b64 }) }
-          );
-        } else {
-          await fetch(
-            `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}/env`,
-            { method: 'POST', headers: { Authorization: `Bearer ${vercelToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'CRISIS_CONTENT_B64', value: b64, type: 'encrypted', target: ['production'] }) }
-          );
-        }
-        let deployed = false;
-        if (deployHook) { await fetch(deployHook, { method: 'POST' }); deployed = true; }
-        return send(res, 200, { ok: true, deployed }, NO_INDEX);
-      } catch (err) {
-        return send(res, 500, { ok: false, code: 'vercel_api_error' }, NO_INDEX);
-      }
+    if (action === 'discard-draft') {
+      await kvDel(KEYS.draft);
+      return send(res, 200, { ok: true }, NO_INDEX);
     }
-    return send(res, 200, { ok: true, deployed: false }, NO_INDEX);
+
+    if (action === 'publish') {
+      const doc = decodeDoc(b64);
+      if (!doc) return fail('invalid_content');
+      const site = body.site === undefined ? null : sanitizeSite(body.site);
+      if (site) {
+        const leaks = publicLeaks(site, doc);
+        if (leaks.length && !body.confirmPublic) return send(res, 409, { status: 'error', code: 'public_leak', leaks }, NO_INDEX);
+      }
+      // Updates have their own store: an editor opened an hour ago cannot erase what was posted since.
+      const cur = await readPublished();
+      if (cur.ok) {
+        doc.updates = cur.content.updates;
+        await kvSet(KEYS.prev, encode(cur.content));
+      }
+      await saveContentToKV(encode(doc));
+      if (site) {
+        const curSite = await kvGet(KEYS.site);
+        if (curSite) await kvSet(KEYS.sitePrev, asText(curSite));
+        await kvSet(KEYS.site, JSON.stringify(site));
+      }
+      await kvDel(KEYS.draft);
+      return send(res, 200, { ok: true, deployed: true, instant: true, warnings: validate(doc).warnings }, NO_INDEX);
+    }
+
+    if (action === 'restore') {
+      const prev = await kvGet(KEYS.prev);
+      if (!prev || !decodeDoc(prev)) return fail('nothing_to_restore', 404);
+      const cur = await readPublished();
+      await saveContentToKV(prev);
+      if (cur.ok) await kvSet(KEYS.prev, encode(cur.content));
+      const prevSite = await kvGet(KEYS.sitePrev);
+      if (prevSite) {
+        const curSite = await kvGet(KEYS.site);
+        await kvSet(KEYS.site, asText(prevSite));
+        if (curSite) await kvSet(KEYS.sitePrev, asText(curSite));
+      }
+      return send(res, 200, { ok: true }, NO_INDEX);
+    }
+
+    if (action === 'post-update') {
+      const title = String(body.title || '').trim().slice(0, 200);
+      const detail = String(body.detail || '').trim().slice(0, 6000);
+      if (!title) return fail('missing_title');
+      await migrateDocUpdates();
+      const time = Number.isFinite(Date.parse(body.time)) ? new Date(body.time).toISOString() : new Date().toISOString();
+      const id = /^u[a-z0-9]{4,40}$/.test(body.id || '') ? body.id : 'u' + Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+      const update = { id, time, priority: PRIORITIES.includes(body.priority) ? body.priority : 'medium', title, detail };
+      await kvHset(KEYS.updates, id, JSON.stringify(update));
+      return send(res, 200, { ok: true, update, held: !released }, NO_INDEX);
+    }
+
+    // delete-update
+    if (typeof body.id !== 'string' || !body.id) return fail('missing_id');
+    await migrateDocUpdates();
+    await kvHdel(KEYS.updates, body.id);
+    return send(res, 200, { ok: true }, NO_INDEX);
   }
 
-  if (req.method !== 'GET') return send(res, 405, { status: 'error', code: 'method_not_allowed' }, NO_INDEX);
+  if (req.method !== 'GET') return fail('method_not_allowed', 405);
 
-  const releaseMs = releaseTime();
-  const content = await readContentFull();
   if (action === 'status') {
+    const content = await readContentFull();
     const health = content.ok ? validate(content.content) : null;
+    const draft = await readDraft();
+    let canRestore = false;
+    if (kvAvailable()) { try { canRestore = !!(await kvGet(KEYS.prev)); } catch (e) { /* treated as no */ } }
     return send(res, 200, {
       status: 'ok', serverTime,
       releaseAt: releaseMs === null ? null : new Date(releaseMs).toISOString(),
-      released: releaseMs !== null && Date.now() >= releaseMs,
+      released,
       releaseConfigOk: releaseMs !== null,
       kvReady: kvAvailable(),
       delegateCode: process.env.DELEGATE_CODE || null,
+      draft: draft ? { savedAt: draft.savedAt } : null,
+      canRestore,
       content: { configured: content.ok || content.code !== 'not_configured', valid: content.ok, code: content.ok ? null : content.code, bytes: content.bytes || 0, ...(health || {}) },
       sessionExpiresAt: new Date(session.exp).toISOString()
     }, NO_INDEX);
   }
+
   if (action === 'content') {
+    const raw = url.searchParams.get('raw') === '1';
+    const draft = url.searchParams.get('draft') === '1' ? await readDraft() : null;
+    const doc = draft ? decodeDoc(draft.b64) : null;
+    if (doc) {
+      let content = doc;
+      if (!raw) {
+        const cur = await readPublished();  // updates come from the live store, not from the draft's copy
+        content = Object.assign({}, doc, { updates: mergeUpdates(cur.ok ? cur.content.updates : [], await readPostedUpdates()) });
+      }
+      return send(res, 200, { status: 'ok', content, site: draft.site || {}, fromDraft: true, savedAt: draft.savedAt }, NO_INDEX);
+    }
+    const content = await readContentFull({ raw });
     if (!content.ok) return send(res, 404, { status: 'error', code: content.code }, NO_INDEX);
-    return send(res, 200, { status: 'ok', content: content.content }, NO_INDEX);
+    return send(res, 200, { status: 'ok', content: content.content, site: await readSite(), fromDraft: false }, NO_INDEX);
   }
+
+  if (action === 'updates') {
+    const cur = await readPublished();
+    return send(res, 200, { status: 'ok', released, updates: mergeUpdates(cur.ok ? cur.content.updates : [], await readPostedUpdates()) }, NO_INDEX);
+  }
+
   return send(res, 400, { status: 'error', code: 'unknown_action' }, NO_INDEX);
 }
 

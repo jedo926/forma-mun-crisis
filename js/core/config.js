@@ -13,9 +13,10 @@
     endpoint: '/api/release',
     adminEndpoint: '/api/admin',
     committeeEndpoint: '/api/committee',
+    siteEndpoint: '/api/site',
     requestTimeoutMs: 8000,
     lockedSlots: 12,          // number of "?" silhouettes before release (display only)
-    refreshAfterReleaseMs: 5 * 60 * 1000,
+    refreshAfterReleaseMs: 30 * 1000,   // new updates reach open pages this fast
     // Released (non-default) characters square off by default: taunts, no hits / K.O.
     // Set to true to let them fully fight.
     fightAfterRelease: false,
@@ -39,7 +40,10 @@
   const PAGE = document.body.dataset.page || 'home';
   const QS = new URLSearchParams(location.search);
   const DEMO = QS.get('demo') === '1';
-  const PREVIEW = QS.get('preview') === '1';
+  // Preview stays on for the whole tab, so links built at any time keep working.
+  let previewTab = false;
+  try { previewTab = sessionStorage.getItem('forma:previewMode') === 'true'; } catch (e) { /* storage unavailable */ }
+  const PREVIEW = PAGE !== 'admin' && (QS.get('preview') === '1' || previewTab);
   const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
   if (IS_TOUCH) document.documentElement.classList.add('touch');
 

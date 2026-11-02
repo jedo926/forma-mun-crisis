@@ -42,3 +42,10 @@ html.fx-low .chair, html.fx-low .intro .rise { opacity: 1; transform: none; }
   .chair, .intro .rise { opacity: 1; transform: none; }
 }
 @media print { .crt, .noise, .topbar, .statusbar { display: none; } body { background: #fff; color: #000; } }
+
+/* Admin preview bar */
+.preview-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px; position: sticky; top: 0; }
+.preview-bar .preview-label { margin-right: 6px; }
+.preview-bar .chip-btn { padding: 6px 9px; }
+.preview-bar .chip-btn.active { background: var(--cyan); color: var(--bg); border-color: var(--cyan); }
+.preview-bar a { white-space: nowrap; }
