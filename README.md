@@ -189,6 +189,10 @@ The chairs and the "?" silhouettes fight for real (K.O.). Released characters pl
 Each character's special move comes from `special` in the content JSON: `{ "name": "…", "type": "projectile | stream | wave | dash | uppercut | counter | flash", "color": "#hex" }`. Use `null` for standard moves only. Keeping these in the private content means move names can't hint at the topic.
 
 
+## Analytics
+
+Vercel Web Analytics and Speed Insights run on the public pages. See them in the Vercel dashboard under the project's Analytics and Speed Insights tabs. The admin panel, previews and demo mode are left out on purpose.
+
 ## Updating the site
 
 - **Text, layout, styles:** edit the page's HTML or the matching CSS module, then commit and push. Vercel redeploys automatically.
