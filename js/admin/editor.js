@@ -38,7 +38,14 @@
     body.append(h('div', { class: 'ed-list' }, c[key].map((item, i) => card(item, i))));
     body.append(abtn(addLabel, () => { c[key].push(blank()); renderBody(); }));
   }
-  const remove = (key, i) => dbtn(() => { C()[key].splice(i, 1); renderBody(); });
+  const remove = (key, i) => dbtn(() => {
+    const item = C()[key][i] || {};
+    const name = item.name || item.title || item.codename || item.date || 'this item';
+    if (!confirm(`Remove ${name}?`)) return;
+    C()[key].splice(i, 1);
+    markDirty();
+    renderBody();
+  });
 
   // ---- general ----
   function renderGeneral(body) {
@@ -328,7 +335,7 @@
     $('[data-editor-save]').addEventListener('click', saveDraft);
     const watch = (el) => {
       ['input', 'change'].forEach((type) => el.addEventListener(type, (e) => { if (!e.target.matches('[data-char-search], [data-site-search]')) markDirty(); }));
-      el.addEventListener('click', (e) => { if (e.target.closest('.ed-add, .ed-del')) markDirty(); });
+      el.addEventListener('click', (e) => { if (e.target.closest('.ed-add')) markDirty(); });
     };
     watch(root());
     watch($('[data-site-body]'));

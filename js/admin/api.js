@@ -23,6 +23,8 @@
     const res = await fetch(endpoint + query + (opts.query || ''), Object.assign({ cache: 'no-store', headers }, opts.init || {}));
     let data = null;
     try { data = await res.json(); } catch (e) { data = null; }
+    // A wrong password also answers 401, but there is no token yet then.
+    if (res.status === 401 && A.token() && A.logout) A.logout('SESSION EXPIRED · LOG IN AGAIN');
     return { res, data };
   }
   const postOpts = (body) => ({ init: { method: 'POST', body: JSON.stringify(body || {}) }, headers: { 'Content-Type': 'application/json' } });
@@ -30,6 +32,7 @@
   A.get = (action, opts) => call(CONFIG.adminEndpoint, action, opts);
   A.post = (action, body) => call(CONFIG.adminEndpoint, action, postOpts(body));
   A.committeeGet = () => call(CONFIG.committeeEndpoint, '');
+  A.committeeDelegates = () => call(CONFIG.committeeEndpoint, 'delegates');
   A.committeePost = (action, body) => call(CONFIG.committeeEndpoint, action, postOpts(body));
   A.login = (username, password) => call(CONFIG.adminEndpoint, 'login', postOpts({ username, password }));
 

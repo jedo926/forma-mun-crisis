@@ -98,3 +98,10 @@ Run on 25 Oct 2026 with Node 22 and headless Chromium (Playwright), against a lo
 
 - **Unit:** 61/61 passed. Added: visitors get nothing before release, admins get the exact bytes, a forged token is refused, the link only appears after release and is never written into the published document, non-PDF files are refused, and replacing or deleting the report removes its pieces.
 - **Browser, local server with an in-memory KV:** 47/47 passed. Added: upload and remove in the panel, and every form field has an id or name.
+
+## Committee rebuild and easier admin (3 Nov 2026)
+
+- **Unit:** 81/81 passed (`npm run test:unit`). Added: lists of speakers, duplicates, the queue limit, moving, SPEAK NOW and its undo, a speaker changed during a pause, added time after zero, reopening an ended caucus, speakers saved before ids existed, the delegate list, spoken counts, and the public response hiding an idle caucus and the delegate list.
+- **Browser, local server with an in-memory KV:** 64/64 passed (`npm run test:local`). Added: pasting a messy list, a full caucus from start to end, undoing a wrong NEXT, TIME UP, roll call and renaming, tap to add, 12 fast adds in a row, a second tab picking up changes, typing surviving a refresh, and an expired session going to the login screen.
+- **Layout:** every admin section checked at 1280px and 390px with no sideways scrolling.
+- **Not checked:** two chairs pressing buttons at the same moment on the live site. Changes to the caucus are in order within one browser, but two browsers can still overwrite each other if they press within a fraction of a second.

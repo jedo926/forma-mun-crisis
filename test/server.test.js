@@ -496,6 +496,225 @@ describe('committee handler — with KV', () => {
     c = (await call({ method: 'GET', url: '/api/committee' })).json.caucus;
     assert.strictEqual(c.currentSpeakerIdx, -1);
   });
+
+  const post = (action, body) => call({ method: 'POST', url: '/api/committee?action=' + action, headers: admin(), body });
+  const state = async () => (await call({ method: 'GET', url: '/api/committee', headers: admin() })).json.caucus;
+  const delegateList = async () => (await call({ method: 'GET', url: '/api/committee?action=delegates', headers: admin() })).json.delegates;
+  const speakerId = (c, name) => c.speakers.find((s) => s.name === name).id;
+  const running = async (names) => {
+    await post('caucus', { type: 'moderated', totalMin: 10, perSpeakerMin: 1 });
+    await post('speaker', { op: 'add', names });
+    await post('control', { op: 'start' });
+  };
+
+  test('a list of speakers is added in one request and duplicates are skipped', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    await post('speaker', { op: 'add', name: 'Germany' });
+    const r = await post('speaker', { op: 'add', names: ['France', 'germany ', 'Japan', 'FRANCE', ''] });
+    assert.deepStrictEqual(r.json.added, ['France', 'Japan']);
+    assert.deepStrictEqual(r.json.skipped, ['germany', 'FRANCE']);
+    assert.deepStrictEqual((await state()).speakers.map((s) => s.name), ['Germany', 'France', 'Japan']);
+    assert.strictEqual((await post('speaker', { op: 'add', names: [' '] })).statusCode, 400);
+  });
+
+  test('someone who has already spoken can queue again', async () => {
+    await running(['A', 'B']);
+    await post('control', { op: 'next' });
+    const r = await post('speaker', { op: 'add', name: 'A' });
+    assert.deepStrictEqual(r.json.added, ['A']);
+  });
+
+  test('the speakers queue stops at 100', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    const r = await post('speaker', { op: 'add', names: Array.from({ length: 120 }, (_, i) => 'D' + i) });
+    assert.strictEqual(r.json.added.length, 100);
+    assert.strictEqual(r.json.full, true);
+    assert.strictEqual((await state()).speakers.length, 100);
+  });
+
+  test('removing by id takes out that person even when positions changed', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    await post('speaker', { op: 'add', names: ['A', 'B', 'C'] });
+    let c = await state();
+    await post('speaker', { op: 'remove', id: speakerId(c, 'C') });
+    await post('speaker', { op: 'remove', id: 'no-such-id' });
+    c = await state();
+    assert.deepStrictEqual(c.speakers.map((s) => s.name), ['A', 'B']);
+  });
+
+  test('moving speakers keeps the current speaker correct', async () => {
+    await running(['A', 'B', 'C']);
+    let c = await state();
+    await post('speaker', { op: 'move', id: speakerId(c, 'B'), dir: 'up' });
+    await post('speaker', { op: 'move', id: speakerId(c, 'B'), dir: 'up' });   // already first: nothing happens
+    c = await state();
+    assert.deepStrictEqual(c.speakers.map((s) => s.name), ['B', 'A', 'C']);
+    assert.strictEqual(c.speakers[c.currentSpeakerIdx].name, 'A');
+  });
+
+  test('NEXT finds a waiting speaker moved above the current one', async () => {
+    await running(['A', 'B', 'C']);
+    let c = await state();
+    await post('speaker', { op: 'move', id: speakerId(c, 'C'), dir: 'up' });
+    await post('speaker', { op: 'move', id: speakerId(c, 'C'), dir: 'up' });   // C, A, B with A speaking
+    await post('control', { op: 'next' });
+    c = await state();
+    assert.strictEqual(c.speakers[c.currentSpeakerIdx].name, 'C');
+  });
+
+  test('CLEAR WAITING leaves the current speaker and those who spoke', async () => {
+    await running(['A', 'B', 'C', 'D']);
+    await post('control', { op: 'next' });
+    await post('speaker', { op: 'clear-waiting' });
+    const c = await state();
+    assert.deepStrictEqual(c.speakers.map((s) => s.status), ['done', 'speaking']);
+    assert.strictEqual(c.speakers[c.currentSpeakerIdx].name, 'B');
+  });
+
+  test('SPEAK NOW on a waiting speaker skips ahead', async () => {
+    await running(['A', 'B', 'C']);
+    const before = await state();
+    await post('control', { op: 'jump', id: speakerId(before, 'C') });
+    const c = await state();
+    assert.deepStrictEqual(c.speakers.map((s) => s.status), ['done', 'waiting', 'speaking']);
+    assert.strictEqual(c.currentSpeakerIdx, 2);
+  });
+
+  test('SPEAK NOW on someone who spoke undoes a wrong NEXT', async () => {
+    await post('delegate', { op: 'add', names: ['A', 'B'] });
+    await running(['A', 'B']);
+    await post('control', { op: 'next' });                     // wrong: B starts
+    const before = await state();
+    await post('control', { op: 'jump', id: speakerId(before, 'A') });
+    const c = await state();
+    assert.deepStrictEqual(c.speakers.map((s) => s.status), ['speaking', 'waiting']);
+    assert.deepStrictEqual((await delegateList()).map((d) => d.spoke), [1, 0]);
+  });
+
+  test('a speaker changed during a pause gets their full time', async () => {
+    await running(['A', 'B']);
+    await post('control', { op: 'pause' });
+    const paused = await state();
+    paused.pausedAt = new Date(Date.now() - 20000).toISOString();          // paused 20 seconds ago
+    kv.set('crisis:caucus', JSON.stringify(paused));
+    await post('control', { op: 'jump', id: speakerId(paused, 'B') });
+    await post('control', { op: 'resume' });
+    const c = await state();
+    const used = Date.now() - Date.parse(c.currentSpeakerStartedAt) - (c.accPausedMs - c.accPausedMsAtSpeakerStart);
+    assert.ok(Math.abs(used) < 2000, 'used ' + used);
+  });
+
+  test('adding caucus time works, even after it ran out', async () => {
+    await running(['A']);
+    await post('control', { op: 'extend', seconds: 60 });
+    assert.strictEqual((await state()).totalMs, 660000);
+    const late = await state();
+    late.startedAt = new Date(Date.now() - 900000).toISOString();          // 4 minutes over
+    kv.set('crisis:caucus', JSON.stringify(late));
+    await post('control', { op: 'extend', seconds: 60 });
+    const c = await state();
+    const left = c.totalMs - (Date.now() - Date.parse(c.startedAt));
+    assert.ok(left > 55000 && left <= 60000, 'left ' + left);
+  });
+
+  test('adding speaker time works, even after it ran out', async () => {
+    await running(['A']);
+    const late = await state();
+    late.currentSpeakerStartedAt = new Date(Date.now() - 100000).toISOString();   // 40 seconds over
+    kv.set('crisis:caucus', JSON.stringify(late));
+    await post('control', { op: 'extend-speaker', seconds: 30 });
+    const c = await state();
+    const left = c.perSpeakerMs - (Date.now() - Date.parse(c.currentSpeakerStartedAt));
+    assert.ok(left > 25000 && left <= 30000, 'left ' + left);
+  });
+
+  test('an ended caucus can be reopened and the gap is not charged', async () => {
+    await running(['A']);
+    await post('control', { op: 'stop' });
+    const ended = await state();
+    assert.strictEqual(ended.status, 'ended');
+    assert.ok(ended.endedAt);
+    ended.endedAt = new Date(Date.now() - 30000).toISOString();            // ended 30 seconds ago
+    kv.set('crisis:caucus', JSON.stringify(ended));
+    await post('control', { op: 'reopen' });
+    const c = await state();
+    assert.strictEqual(c.status, 'active');
+    assert.ok(c.accPausedMs >= 29000);
+    assert.strictEqual(c.speakers[c.currentSpeakerIdx].name, 'A');
+  });
+
+  test('STOP does nothing to a caucus that never started', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    await post('control', { op: 'stop' });
+    assert.strictEqual((await state()).status, 'idle');
+  });
+
+  test('editing the setup can keep the speakers', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    await post('speaker', { op: 'add', names: ['A', 'B'] });
+    await post('caucus', { type: 'moderated', totalMin: 9, keepSpeakers: true });
+    const c = await state();
+    assert.strictEqual(c.totalMs, 540000);
+    assert.deepStrictEqual(c.speakers.map((s) => s.name), ['A', 'B']);
+    await post('caucus', { type: 'moderated', totalMin: 9 });
+    assert.strictEqual((await state()).speakers.length, 0);
+  });
+
+  test('speakers saved before ids existed keep working', async () => {
+    kv.set('crisis:caucus', JSON.stringify({ type: 'moderated', totalMs: 60000, status: 'idle', speakers: [{ name: 'A', status: 'waiting' }, { name: 'B', status: 'waiting' }] }));
+    const a = await state(), b = await state();
+    assert.deepStrictEqual(a.speakers.map((s) => s.id), b.speakers.map((s) => s.id));
+    await post('speaker', { op: 'remove', id: a.speakers[0].id });
+    assert.deepStrictEqual((await state()).speakers.map((s) => s.name), ['B']);
+  });
+
+  test('the public GET hides an idle caucus and never has delegates', async () => {
+    await post('delegate', { op: 'add', names: ['Secret Delegate'] });
+    await post('caucus', { type: 'moderated', totalMin: 5, topic: 'Secret topic' });
+    await post('speaker', { op: 'add', name: 'Secret Speaker' });
+    const idle = await call({ method: 'GET', url: '/api/committee' });
+    assert.ok(!/Secret/.test(JSON.stringify(idle.json)), 'nothing secret while idle');
+    assert.strictEqual(idle.json.admin, false);
+    const own = await call({ method: 'GET', url: '/api/committee', headers: admin() });
+    assert.strictEqual(own.json.caucus.speakers.length, 1);
+    assert.strictEqual(own.json.admin, true);
+    await post('control', { op: 'start' });
+    const live = await call({ method: 'GET', url: '/api/committee' });
+    assert.ok(JSON.stringify(live.json).includes('Secret Speaker'), 'the queue goes public once started');
+    assert.ok(!JSON.stringify(live.json).includes('Secret Delegate'), 'the delegate list never does');
+  });
+
+  test('the delegate list is admin only', async () => {
+    assert.strictEqual((await call({ method: 'GET', url: '/api/committee?action=delegates' })).statusCode, 401);
+    assert.strictEqual((await call({ method: 'POST', url: '/api/committee?action=delegate', body: { op: 'add', names: ['X'] } })).statusCode, 401);
+  });
+
+  test('delegates can be added, renamed, marked and removed', async () => {
+    const add = await post('delegate', { op: 'add', names: ['France', 'Germany', 'france'] });
+    assert.deepStrictEqual(add.json.added, ['France', 'Germany']);
+    assert.deepStrictEqual(add.json.skipped, ['france']);
+    const [fr, de] = add.json.delegates;
+    assert.strictEqual(fr.present, true);
+    assert.strictEqual((await post('delegate', { op: 'update', id: de.id, name: 'FRANCE' })).statusCode, 409);
+    assert.strictEqual((await post('delegate', { op: 'update', id: de.id, name: ' ' })).statusCode, 400);
+    assert.strictEqual((await post('delegate', { op: 'update', id: 'nope', present: false })).statusCode, 404);
+    let list = (await post('delegate', { op: 'update', id: de.id, name: 'Deutschland', present: false })).json.delegates;
+    assert.deepStrictEqual(list.map((d) => [d.name, d.present]), [['Deutschland', false], ['France', true]]);
+    list = (await post('delegate', { op: 'all-present' })).json.delegates;
+    assert.ok(list.every((d) => d.present));
+    list = (await post('delegate', { op: 'remove', id: fr.id })).json.delegates;
+    assert.deepStrictEqual(list.map((d) => d.name), ['Deutschland']);
+  });
+
+  test('speeches are counted, and a new session resets the list', async () => {
+    await post('delegate', { op: 'add', names: ['A', 'B'] });
+    await running(['a', 'B', 'C']);                            // matched ignoring case; C has no entry
+    await post('control', { op: 'next' });
+    await post('control', { op: 'next' });
+    assert.deepStrictEqual((await delegateList()).map((d) => d.spoke), [1, 1]);
+    const list = (await post('delegate', { op: 'new-session' })).json.delegates;
+    assert.deepStrictEqual(list.map((d) => [d.present, d.spoke]), [[false, 0], [false, 0]]);
+  });
 });
 
 describe('drafts, publishing, updates and public text — with KV', () => {

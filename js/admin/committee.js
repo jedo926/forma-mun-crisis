@@ -1,173 +1,171 @@
-/* FORMA MUN · Crisis Division — Admin: live committee controls
-   Saves as you go; nothing here needs publishing. */
+/* FORMA MUN · Crisis Division — Admin: live committee, the shared part
+   Holds the state, the tabs and the Directives tab. RUN CAUCUS is in committee-run.js and DELEGATES
+   in committee-delegates.js; they register in A.comm.views. Everything saves as you go. */
 (function (F) {
   'use strict';
-  const { $, h, toast, Sound } = F;
+  const { $, h, toast, session, fmtStamp, isTyping, Sound } = F;
   const A = F.Admin;
-  const { fieldAttrs, lbl, erow, efull, ecard, hint, esect, dbtn, abtn, tf, dd } = A.ui;
+  const { fieldAttrs, lbl, ecard, hint, dbtn, pbtn, ta } = A.ui;
 
-  let Comm = null; // { caucus, directives, kvReady }
+  const TABS = [['run', 'RUN CAUCUS'], ['delegates', 'DELEGATES'], ['directives', 'DIRECTIVES']];
+  const C = A.comm = { data: null, delegates: [], views: {}, tab: session.get('commTab', 'run') };
+
   let open = false;
+  let pending = 0;        // changes on their way to the server
+  let changes = 0;        // total changes sent, to spot a reading that is already out of date
+  let chain = Promise.resolve();
+  let shown = '';         // what is on screen, to skip needless redraws
+  let stale = false;      // something changed while the chair was typing
+  let dirFilter = '';
+
   const bodyEl = () => $('[data-committee-body]');
+  const fresh = () => { const d = C.data || {}; return JSON.stringify([d.caucus, d.directives, d.kvReady, C.delegates, A.status && A.status.delegateCode]); };
+  const typingHere = () => { const el = document.activeElement; return isTyping(el) && bodyEl().contains(el); };
 
-  const pad2 = (n) => String(Math.floor(n)).padStart(2, '0');
-  function fmtMs(ms) {
-    if (ms <= 0) return '00:00';
-    const s = Math.floor(ms / 1000);
-    return `${pad2(s / 60)}:${pad2(s % 60)}`;
-  }
-  function stateText(c) {
-    const now = A.now();
-    const activePause = (c.status === 'paused' && c.pausedAt) ? now - Date.parse(c.pausedAt) : 0;
-    const elapsed = c.startedAt ? now - Date.parse(c.startedAt) - (c.accPausedMs || 0) - activePause : 0;
-    return `STATUS: ${c.status.toUpperCase()} · REMAINING: ${fmtMs(Math.max(0, (c.totalMs || 0) - elapsed))} · TYPE: ${c.type.toUpperCase()}`;
-  }
-
-  async function load() {
-    const { res, data } = await A.committeeGet().catch(() => ({ res: { ok: false }, data: null }));
-    if (!res.ok || !data || !data.ok) { toast('COULD NOT LOAD COMMITTEE STATE'); return; }
-    Comm = data;
-    render();
-  }
-
-  // Timer text updates in place, so typing is never interrupted.
-  setInterval(() => {
-    const bar = open && Comm && Comm.caucus && $('.comm-state-bar');
-    if (bar) bar.textContent = stateText(Comm.caucus);
-  }, 1000);
-  setInterval(async () => {
-    if (!open || !Comm || !A.token() || document.hidden) return;
-    const { res, data } = await A.committeeGet().catch(() => ({ res: { ok: false }, data: null }));
-    if (!res.ok || !data || !data.ok) return;
-    Comm.directives = data.directives;
-    const box = $('[data-comm-directives]');
-    if (box) renderDirectives(box);
-  }, 10000);
-
-  /** Number of minutes/seconds to show: the caucus's own, or a sensible default when it has none. */
-  const split = (ms, fallbackMin) => (ms ? [Math.floor(ms / 60000), Math.floor((ms % 60000) / 1000)] : [fallbackMin, 0]);
-
-  function numberInput(value, max, onInput) {
-    const el = h('input', Object.assign(fieldAttrs(), { class: 'input num-xs', type: 'number', min: '0', max: String(max), step: '1', value: String(value) }));
-    el.addEventListener('input', () => onInput(parseInt(el.value, 10) || 0));
+  /** Sends one change. Changes go one at a time, so fast tapping can't overwrite itself. */
+  C.send = (action, body) => {
+    pending += 1;
+    changes += 1;
+    const job = chain.then(() => A.committeePost(action, body)).catch(() => ({ res: { ok: false }, data: null })).then(({ res, data }) => {
+      pending -= 1;
+      if (res.ok && data && data.ok) return data;
+      return { ok: false, code: data && data.code, expired: res.status === 401 };
+    });
+    chain = job;
+    return job;
+  };
+  C.isOpen = () => open;
+  C.idle = () => pending === 0;
+  /** For failed changes. An expired session has already gone to the login screen. */
+  C.fail = (r, text) => { if (r.expired) return; toast(text); Sound.play('error'); };
+  C.search = (placeholder, value, onInput) => {
+    const el = h('input', Object.assign(fieldAttrs(), { class: 'input', type: 'text', placeholder, 'aria-label': placeholder }));
+    el.value = value;
+    el.addEventListener('input', () => onInput(el.value));
     return el;
-  }
+  };
 
-  async function control(op, failText) {
-    const { res, data } = await A.committeePost('control', { op });
-    if (res.ok && data && data.ok) { Sound.play(op === 'start' ? 'start' : 'select'); Comm.caucus = data.caucus; render(); }
-    else { toast(failText || 'CONTROL FAILED'); Sound.play('error'); }
-  }
-
-  function renderSetup(body, c) {
-    const form = {
-      type: (c && c.type) || 'moderated', topic: (c && c.topic) || '',
-      total: split(c && c.totalMs, 5), speaker: split(c && c.perSpeakerMs, 1)
-    };
-    const perSpeaker = erow(lbl('PER SPEAKER'), numberInput(form.speaker[0], 999, (v) => { form.speaker[0] = v; }), lbl('min'), numberInput(form.speaker[1], 59, (v) => { form.speaker[1] = v; }), lbl('sec'));
-    perSpeaker.hidden = form.type === 'unmoderated';
-    const msg = h('span', { class: 'admin-msg' });
-    const btn = h('button', { class: 'btn mag', type: 'button' }, 'SET UP CAUCUS');
-    btn.addEventListener('click', async () => {
-      if (c && (c.status === 'active' || c.status === 'paused') && !confirm('A caucus is running. Replace it? Its timer and speakers list will be lost.')) return;
-      btn.disabled = true;
-      msg.textContent = 'SETTING UP…';
-      const { res, data } = await A.committeePost('caucus', { type: form.type, topic: form.topic, totalMin: form.total[0], totalSec: form.total[1], perSpeakerMin: form.speaker[0], perSpeakerSec: form.speaker[1] });
-      if (res.ok && data && data.ok) { Sound.play('select'); Comm.caucus = data.caucus; render(); toast('CAUCUS READY'); return; }
-      msg.className = 'admin-msg bad';
-      msg.textContent = data && data.code === 'missing_duration' ? 'SET A TOTAL TIME FIRST' : 'FAILED · TRY AGAIN';
-      Sound.play('error');
-      btn.disabled = false;
-    });
-    body.append(esect('CAUCUS SETUP'), hint('Setting up a new caucus resets the timer and the speakers list.'), ecard(
-      efull(lbl('TYPE'), dd([['moderated', 'MODERATED CAUCUS'], ['unmoderated', 'UNMODERATED CAUCUS']], form.type, (v) => { form.type = v; perSpeaker.hidden = v === 'unmoderated'; })),
-      efull(lbl('TOPIC'), tf(form.topic, (v) => { form.topic = v; }, 'Caucus topic…')),
-      erow(lbl('TOTAL DURATION'), numberInput(form.total[0], 999, (v) => { form.total[0] = v; }), lbl('min'), numberInput(form.total[1], 59, (v) => { form.total[1] = v; }), lbl('sec')),
-      perSpeaker,
-      erow(msg, btn)));
-  }
-
-  function renderControls(body, c) {
-    const row = h('div', { class: 'comm-ctrl-row' });
-    if (c && c.status !== 'idle') {
-      body.append(esect('CONTROLS'), h('div', { class: 'comm-state-bar', text: stateText(c) }));
-      if (c.status === 'active') {
-        row.append(abtn('PAUSE', () => control('pause')));
-        if (c.type === 'moderated') row.append(abtn('NEXT SPEAKER ▸', () => control('next')));
-        row.append(abtn('STOP', () => control('stop')));
-      } else if (c.status === 'paused') {
-        row.append(abtn('RESUME', () => control('resume')), abtn('STOP', () => control('stop')));
-      } else if (c.status === 'ended') {
-        row.append(abtn('CLEAR & RESET', () => control('clear')));
-      }
-      body.append(row);
-    } else if (c && c.totalMs > 0) {
-      row.append(abtn('START CAUCUS ▸', () => control('start', 'START FAILED')));
-      body.append(esect('CONTROLS'), row);
+  /** The box for a pasted list of names, which says what will happen before anything is added. */
+  C.pasteBox = ({ text, onText, known, addLabel, onAdd, onCancel }) => {
+    const count = h('span', { class: 'admin-msg', dataset: { pasteCount: '' } });
+    const add = pbtn(addLabel, () => onAdd(A.ui.parseNames(text)), 'mag');
+    const box = ta(text, (v) => { text = v; onText(v); update(); }, 'Paste or type names. One per line, or separated by commas.', 'ta-lg');
+    box.dataset.pasteBox = '';
+    function update() {
+      const names = A.ui.parseNames(text);
+      const repeats = names.filter(known).length;
+      const newOnes = names.length - repeats;
+      count.textContent = names.length ? `${newOnes} NEW${repeats ? ` · ${repeats} ALREADY THERE` : ''}` : '';
+      add.disabled = !newOnes;
     }
+    update();
+    return ecard(lbl('PASTE A LIST'), box, h('div', { class: 'comm-ctrl-row comm-mid' }, add, pbtn('CANCEL', onCancel), count));
+  };
+
+  function renderTabs() {
+    const count = ((C.data && C.data.directives) || []).length;
+    return h('div', { class: 'comm-tabs', role: 'group', 'aria-label': 'Committee sections' }, TABS.map(([id, label]) => h('button', {
+      class: 'chip-btn' + (id === C.tab ? ' active' : ''), type: 'button', 'aria-pressed': String(id === C.tab), dataset: { commTab: id },
+      onclick: () => { C.tab = id; session.set('commTab', id); Sound.play('move'); C.render(); pull(true); }
+    }, id === 'directives' && count ? `${label} (${count})` : label)));
   }
 
-  function renderSpeakers(body, c) {
-    if (!c || c.type !== 'moderated') return;
-    const speakerOp = async (payload, onDone) => {
-      const { res, data } = await A.committeePost('speaker', payload);
-      if (res.ok && data && data.ok) { Comm.caucus.speakers = data.speakers; onDone(); render(); return true; }
-      return false;
-    };
-    const list = h('div', { class: 'ed-list' });
-    const speakers = c.speakers || [];
-    if (!speakers.length) list.append(hint('No speakers yet. Add delegations below.'));
-    speakers.forEach((s, i) => list.append(h('div', { class: 'comm-speaker-item' },
-      h('span', { class: 'comm-speaker-name', text: `#${i + 1} ${s.name}` }),
-      h('span', { class: 'speaker-badge ' + s.status, text: s.status.toUpperCase() }),
-      dbtn(() => speakerOp({ op: 'remove', index: i }, () => {})))));
-    const input = tf('', () => {}, 'Delegation name…');
-    const add = h('button', { class: 'btn ed-add', type: 'button' }, '+ ADD TO QUEUE');
-    add.addEventListener('click', async () => {
-      const name = input.value.trim();
-      if (!name) return;
-      add.disabled = true;
-      const ok = await speakerOp({ op: 'add', name }, () => Sound.play('select'));
-      if (!ok) { toast('COULD NOT ADD SPEAKER'); Sound.play('error'); add.disabled = false; }
-    });
-    body.append(esect('SPEAKERS QUEUE'), list, erow(input, add));
-  }
-
-  function renderDirectives(box) {
-    const dirs = (Comm.directives || []).slice().sort((a, b) => (b.time || '').localeCompare(a.time || ''));
-    box.innerHTML = '';
-    box.append(hint(`${dirs.length} directive${dirs.length === 1 ? '' : 's'} submitted. This list updates automatically.`));
-    if (!dirs.length) { box.append(h('p', { class: 'muted', text: 'No directives yet.' })); return; }
-    dirs.forEach((d) => box.append(h('div', { class: 'comm-dir-card' },
-      h('div', { class: 'comm-dir-header' }, h('span', { class: 'comm-dir-delegation', text: d.delegation }),
-        dbtn(async () => {
-          const { res, data } = await A.committeePost('del-directive', { id: d.id });
-          if (res.ok && data && data.ok) { Sound.play('select'); Comm.directives = Comm.directives.filter((x) => x.id !== d.id); renderDirectives(box); }
-          else toast('COULD NOT DELETE DIRECTIVE');
-        })),
-      h('div', { class: 'comm-dir-text', text: d.text }))));
-  }
-
-  function render() {
+  C.render = () => {
     const body = bodyEl();
+    if (!open) return;
+    const y = window.scrollY;
+    shown = fresh();
+    stale = false;
     body.innerHTML = '';
-    if (!Comm) { body.append(hint('Loading committee state…')); return; }
-    if (!Comm.kvReady) {
-      body.append(h('div', { class: 'comm-banner' }, '⚠ COMMITTEE FEATURES NEED THE VERCEL KV STORE. Connect it under Project → Storage, then redeploy once.'), abtn('REFRESH', load));
+    if (!C.data) { body.append(hint('Loading committee state…')); return; }
+    if (!C.data.kvReady) {
+      body.append(h('div', { class: 'comm-banner' }, '⚠ COMMITTEE FEATURES NEED THE VERCEL KV STORE. Connect it under Project → Storage, then redeploy once.'), pbtn('REFRESH', () => pull(true)));
       return;
     }
-    const c = Comm.caucus || null;
-    renderSetup(body, c);
-    renderControls(body, c);
-    renderSpeakers(body, c);
-    const code = A.status && A.status.delegateCode;
-    const list = h('div', { dataset: { commDirectives: '' } });
-    body.append(esect('PUBLIC DIRECTIVES'),
-      hint(code ? `Delegate code: ${code}. Give this to delegates; the Committee page asks for it before they can post.` : 'Anyone can post: DELEGATE_CODE is not set on Vercel.'),
-      abtn('REFRESH', load), list);
-    renderDirectives(list);
+    const pane = h('div', { dataset: { commPane: C.tab } });
+    body.append(renderTabs(), pane);
+    C.views[C.tab](pane);
+    window.scrollTo(0, y);
+  };
+
+  /** Reads the server. Redraws only when something changed, and never over someone typing. */
+  async function pull(first) {
+    const seen = changes;
+    const fail = () => ({ res: { ok: false }, data: null });
+    const [main, list] = await Promise.all([
+      A.committeeGet().catch(fail),
+      C.tab === 'directives' && !first ? null : A.committeeDelegates().catch(fail)
+    ]);
+    if (seen !== changes || pending) return;       // a newer change is on its way, so this is old
+    if (!main.res.ok || !main.data || !main.data.ok) { if (first) toast('COULD NOT LOAD COMMITTEE STATE'); return; }
+    if (A.token() && main.data.admin === false) { A.logout('SESSION EXPIRED · LOG IN AGAIN'); return; }
+    const st = Date.parse(main.data.serverTime);
+    if (Number.isFinite(st)) A.clockOffset = st - Date.now();
+    C.data = main.data;
+    if (list && list.res.ok && list.data && list.data.ok) C.delegates = list.data.delegates;
+    if (!first && fresh() === shown && !stale) return;
+    if (typingHere()) { stale = true; return; }
+    C.render();
+  }
+  C.pull = pull;
+
+  function schedule() {
+    const c = C.data && C.data.caucus;
+    const live = c && (c.status === 'active' || c.status === 'paused');
+    setTimeout(async () => {
+      if (open && A.token() && !document.hidden) await pull();
+      schedule();
+    }, live ? 5000 : 15000);
+  }
+  schedule();
+
+  // ---- directives ----
+  function copyCode(code) {
+    const done = () => { toast('DELEGATE CODE COPIED'); Sound.play('select'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => toast('COULD NOT COPY · CODE: ' + code));
+    else toast('COULD NOT COPY · CODE: ' + code);
   }
 
-  A.onPanel.committee = () => { open = true; render(); load(); };
+  function directiveCard(d) {
+    return h('div', { class: 'comm-dir-card', dataset: { directive: d.id } },
+      h('div', { class: 'comm-dir-header' },
+        h('span', { class: 'comm-dir-delegation', text: d.delegation }),
+        h('span', { class: 'comm-dir-time', text: fmtStamp(d.time) }),
+        dbtn(async () => {
+          if (!confirm(`Delete this directive from ${d.delegation}? This can't be undone.`)) return;
+          const r = await C.send('del-directive', { id: d.id });
+          if (!r.ok) { C.fail(r, 'COULD NOT DELETE DIRECTIVE'); return; }
+          Sound.play('select');
+          C.data.directives = C.data.directives.filter((x) => x.id !== d.id);
+          C.render();
+        })),
+      h('div', { class: 'comm-dir-text', text: d.text }));
+  }
+
+  C.views.directives = (body) => {
+    const dirs = (C.data.directives || []).slice().sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+    const code = A.status && A.status.delegateCode;
+    if (code) {
+      body.append(h('div', { class: 'comm-ctrl-row comm-mid' }, h('span', { class: 'comm-code', text: `DELEGATE CODE: ${code}` }), pbtn('COPY', () => copyCode(code))),
+        hint('Delegates need this code to post from the Committee page.'));
+    } else {
+      body.append(hint('Anyone can post: DELEGATE_CODE is not set on Vercel.'));
+    }
+    const list = h('div');
+    const paint = () => {
+      const q = dirFilter.trim().toLowerCase();
+      const match = dirs.filter((d) => !q || `${d.delegation} ${d.text}`.toLowerCase().includes(q));
+      list.innerHTML = '';
+      if (!dirs.length) list.append(hint('No directives yet. New ones appear here by themselves.'));
+      else if (!match.length) list.append(hint('No directives match.'));
+      list.append(...match.map(directiveCard));
+    };
+    if (dirs.length) body.append(C.search('Search by delegation or text…', dirFilter, (v) => { dirFilter = v; paint(); }));
+    body.append(list);
+    paint();
+  };
+
+  A.onPanel.committee = () => { open = true; C.render(); pull(true); };
   A.onPanelLeave = () => { open = false; };
+  A.onLogout.push(() => { open = false; C.data = null; C.delegates = []; });
 })(window.FORMA = window.FORMA || {});
