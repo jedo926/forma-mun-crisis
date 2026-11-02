@@ -12,13 +12,14 @@
   let items = [];
   let released = false;
   let form = blank();
+  let noticeBox = null, listBox = null;
 
   const expired = (res) => { if (res.status === 401) { A.logout('SESSION EXPIRED · LOG IN AGAIN'); return true; } return false; };
 
   async function load() {
     const { res, data } = await A.get('updates').catch(() => ({ res: { ok: false }, data: null }));
     if (expired(res)) return;
-    if (res.ok && data) { items = data.updates || []; released = !!data.released; render(); }
+    if (res.ok && data) { items = data.updates || []; released = !!data.released; paintNotice(); paintList(); }
     else toast('COULD NOT LOAD UPDATES');
   }
 
@@ -29,8 +30,9 @@
     if (expired(res)) return;
     if (res.ok && data && data.ok) {
       Sound.play('release');
-      toast(data.held ? 'UPDATE SAVED · APPEARS AT RELEASE' : 'UPDATE POSTED · REACHES OPEN PAGES WITHIN 30 SECONDS');
+      toast(data.held ? 'UPDATE SAVED · APPEARS AT RELEASE' : 'UPDATE POSTED · REACHES OPEN PAGES WITHIN ABOUT 40 SECONDS');
       form = blank();
+      render();
       await load();
       A.refresh();
     } else {
@@ -48,35 +50,46 @@
     else toast('COULD NOT DELETE UPDATE');
   }
 
+  function paintNotice() {
+    if (!noticeBox) return;
+    noticeBox.className = released ? 'notice-info' : 'notice-warn';
+    noticeBox.textContent = released
+      ? 'LIVE · A posted update reaches every open page within about 40 seconds.'
+      : 'HELD UNTIL RELEASE · Updates you post now stay private and appear at the reveal.';
+  }
+
+  function paintList() {
+    if (!listBox) return;
+    listBox.innerHTML = '';
+    listBox.append(h('h3', { class: 'ed-section', text: `POSTED (${items.length})` }));
+    if (!items.length) listBox.append(hint('Nothing posted yet.'));
+    items.forEach((u) => listBox.append(ecard(
+      h('div', { class: 'update-head' },
+        h('span', { class: 'prio ' + (u.priority || 'medium'), text: (u.priority || 'medium').toUpperCase() }),
+        h('span', { class: 'update-time', text: fmtStamp(u.time) }),
+        released ? null : h('span', { class: 'prio held', text: 'HELD' }),
+        h('span', { class: 'update-actions' },
+          h('button', { class: 'chip-btn', type: 'button', onclick: () => { form = { id: u.id, priority: u.priority || 'medium', title: u.title || '', detail: u.detail || '', time: u.time }; render(); $('[data-updates-body]').scrollIntoView({ block: 'start' }); } }, 'EDIT'),
+          h('button', { class: 'ed-del', type: 'button', 'aria-label': 'Delete update', dataset: { updateDelete: '' }, onclick: () => del(u) }, '✕'))),
+      h('strong', { class: 'update-title', text: u.title }),
+      u.detail ? h('p', { class: 'muted update-detail', text: u.detail }) : null)));
+  }
+
+  /** Builds the form. Refreshing the list never touches it, so nothing typed or clicked gets lost. */
   function render() {
     const body = $('[data-updates-body]');
     body.innerHTML = '';
     const msg = h('span', { class: 'admin-msg' });
-    body.append(
-      h('div', { class: released ? 'notice-info' : 'notice-warn' }, released
-        ? 'LIVE · A posted update reaches every open page within 30 seconds.'
-        : 'HELD UNTIL RELEASE · Updates you post now stay private and appear at the reveal.'),
-      ecard(
-        erow(lbl('PRIORITY'), dd(PRIORITIES, form.priority, (v) => { form.priority = v; })),
-        efull(lbl('HEADLINE'), tf(form.title, (v) => { form.title = v; }, 'Short update headline…')),
-        efull(lbl('DETAILS'), ta(form.detail, (v) => { form.detail = v; }, 'Full update text…', 'ta-lg')),
-        erow(msg, h('button', { class: 'btn mag', type: 'button', dataset: { updatePost: '' }, onclick: () => post(msg) }, form.id ? 'SAVE CHANGES ▸' : 'POST UPDATE ▸'),
-          form.id ? h('button', { class: 'btn', type: 'button', onclick: () => { form = blank(); render(); } }, 'CANCEL') : null)));
-    body.append(h('h3', { class: 'ed-section', text: `POSTED (${items.length})` }));
-    if (!items.length) body.append(hint('Nothing posted yet.'));
-    items.forEach((u) => {
-      const card = ecard(
-        h('div', { class: 'update-head' },
-          h('span', { class: 'prio ' + (u.priority || 'medium'), text: (u.priority || 'medium').toUpperCase() }),
-          h('span', { class: 'update-time', text: fmtStamp(u.time) }),
-          released ? null : h('span', { class: 'prio held', text: 'HELD' }),
-          h('span', { class: 'update-actions' },
-            h('button', { class: 'chip-btn', type: 'button', onclick: () => { form = { id: u.id, priority: u.priority || 'medium', title: u.title || '', detail: u.detail || '', time: u.time }; render(); body.scrollIntoView({ block: 'start' }); } }, 'EDIT'),
-            h('button', { class: 'ed-del', type: 'button', 'aria-label': 'Delete update', dataset: { updateDelete: '' }, onclick: () => del(u) }, '✕'))),
-        h('strong', { class: 'update-title', text: u.title }),
-        u.detail ? h('p', { class: 'muted update-detail', text: u.detail }) : null);
-      body.append(card);
-    });
+    noticeBox = h('div');
+    listBox = h('div');
+    body.append(noticeBox, ecard(
+      erow(lbl('PRIORITY'), dd(PRIORITIES, form.priority, (v) => { form.priority = v; })),
+      efull(lbl('HEADLINE'), tf(form.title, (v) => { form.title = v; }, 'Short update headline…')),
+      efull(lbl('DETAILS'), ta(form.detail, (v) => { form.detail = v; }, 'Full update text…', 'ta-lg')),
+      erow(msg, h('button', { class: 'btn mag', type: 'button', dataset: { updatePost: '' }, onclick: () => post(msg) }, form.id ? 'SAVE CHANGES ▸' : 'POST UPDATE ▸'),
+        form.id ? h('button', { class: 'btn', type: 'button', onclick: () => { form = blank(); render(); } }, 'CANCEL') : null)), listBox);
+    paintNotice();
+    paintList();
   }
 
   A.onPanel.updates = load;

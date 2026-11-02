@@ -466,7 +466,7 @@ test.describe('Map, fighters and countdown', () => {
     await frame.locator('#site-nav a', { hasText: 'LOCATIONS' }).click();
     await frame.locator('.map .pin.has-icon').click();
     await expect(frame.locator('.loc-symbol')).toContainText('THE SYMBOL');
-    await expect(frame.locator('.map-wrap')).not.toContainText('[object');
+    await expect(frame.locator('.map-wrap', { has: frame.locator('.pin.has-icon') })).not.toContainText('[object');
   });
 
   test('content can add pixel art to a fighter, and bad art is ignored', async ({ page }) => {
