@@ -552,6 +552,17 @@ test.describe('Admin — chair report', () => {
   });
 });
 
+test.describe('Analytics', () => {
+  test('nothing loads off Vercel, so local copies stay quiet', async ({ page }) => {
+    test.skip(!process.env.E2E_LOCAL, 'local server only');
+    const hits = [];
+    page.on('request', (r) => { if (r.url().includes('/_vercel/')) hits.push(r.url()); });
+    await page.goto('/index.html');
+    await page.waitForTimeout(800);
+    expect(hits).toEqual([]);
+  });
+});
+
 test.describe('Effects', () => {
   test('there is no effects button, and old or device settings cannot lower effects', async ({ browser }) => {
     const context = await browser.newContext({ reducedMotion: 'reduce' });
