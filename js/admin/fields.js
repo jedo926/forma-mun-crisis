@@ -1,0 +1,79 @@
+/* FORMA MUN · Crisis Division — Admin: form building blocks */
+(function (F) {
+  'use strict';
+  const { h, arr } = F;
+
+  const lbl = (text) => h('span', { class: 'ed-lbl', text });
+  const erow = (...kids) => h('div', { class: 'ed-row' }, ...kids);
+  const efull = (...kids) => h('div', { class: 'ed-row ed-full' }, ...kids);
+  const ecard = (...kids) => h('div', { class: 'ed-card' }, ...kids);
+  const hint = (text) => h('p', { class: 'muted ed-hint', text });
+  const esect = (text) => h('h3', { class: 'ed-section', text });
+
+  function dbtn(onClick) {
+    return h('button', { class: 'ed-del', type: 'button', title: 'Remove this item', 'aria-label': 'Remove this item', onclick: onClick }, '✕');
+  }
+  function abtn(label, onClick) {
+    return h('button', { class: 'btn ed-add', type: 'button', onclick: onClick }, '+ ' + label);
+  }
+  function tf(val, onInput, placeholder) {
+    const el = h('input', { class: 'input', type: 'text', placeholder: placeholder || '' });
+    el.value = val || '';
+    el.addEventListener('input', () => onInput(el.value));
+    return el;
+  }
+  function ta(val, onInput, placeholder, cls) {
+    const el = h('textarea', { class: 'input ' + (cls || 'ta-sm'), placeholder: placeholder || '' });
+    el.value = val || '';
+    el.addEventListener('input', () => onInput(el.value));
+    return el;
+  }
+  /** A dropdown that always keeps the stored value as an option, even an unusual one. */
+  function dd(options, current, onChange) {
+    const list = options.slice();
+    if (current && !list.some(([v]) => v === current)) list.unshift([current, current]);
+    const el = h('select', { class: 'input dd-sm' });
+    list.forEach(([v, text]) => {
+      const o = h('option', { value: v, text });
+      if (v === current) o.selected = true;
+      el.append(o);
+    });
+    el.addEventListener('change', () => onChange(el.value));
+    return el;
+  }
+  function cpick(val, onChange) {
+    const el = h('input', { class: 'cpick', type: 'color', 'aria-label': 'Pick a colour' });
+    el.value = val || '#000000';
+    el.addEventListener('input', () => onChange(el.value));
+    return el;
+  }
+  function checkbox(label, checked, onChange) {
+    const cb = h('input', { type: 'checkbox' });
+    cb.checked = !!checked;
+    cb.addEventListener('change', () => onChange(cb.checked));
+    return h('label', { class: 'cb-lbl' }, cb, ' ' + label);
+  }
+  /** Text that may be stored as one string or a list of paragraphs. Keeps the stored form. */
+  function paras(obj, key, placeholder, cls) {
+    const wasList = Array.isArray(obj[key]);
+    const shown = wasList ? arr(obj[key]).join('\n\n') : obj[key];
+    return ta(shown, (v) => {
+      obj[key] = wasList ? v.split(/\n{2,}/).map((s) => s.trim()).filter(Boolean) : v;
+    }, placeholder, cls);
+  }
+  /** Sets a value, or removes the key when blank, so empty fields don't add noise to the content. */
+  const setOrClear = (obj, key) => (v) => { if (v) obj[key] = v; else delete obj[key]; };
+
+  /** A collapsed row whose form is only built when opened, so long lists stay fast. */
+  function fold(title, sub, build) {
+    const titleEl = h('span', { class: 'fold-title', text: title });
+    const node = h('details', { class: 'ed-fold' }, h('summary', null, titleEl, sub ? h('span', { class: 'fold-sub', text: sub }) : null));
+    let built = false;
+    node.addEventListener('toggle', () => {
+      if (node.open && !built) { built = true; node.append(build(titleEl)); }
+    });
+    return node;
+  }
+
+  F.Admin.ui = { lbl, erow, efull, ecard, hint, esect, dbtn, abtn, tf, ta, dd, cpick, checkbox, paras, setOrClear, fold };
+})(window.FORMA = window.FORMA || {});

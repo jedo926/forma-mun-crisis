@@ -29,7 +29,6 @@
       <div>
         <p class="kicker">OPERATOR ACCESS</p>
         <h1 class="glitch">CONTROL ROOM</h1>
-        <p class="lead">Release status, content health check, pre-release preview, the content editor and live committee controls.</p>
       </div>
     </header>
 
@@ -45,44 +44,98 @@
     </section>
 
     <section data-admin-dash hidden>
-      <div class="admin-bar">
-        <span class="label vio" data-a="session">SESSION</span>
-        <div class="admin-actions"><button class="btn" type="button" data-a="refresh">REFRESH</button><button class="btn mag" type="button" data-a="logout">LOG OUT</button></div>
-      </div>
-      <div class="admin-grid">
-        <div class="panel tile-stat"><span class="label">STATE</span><p class="big" data-a="state">…</p></div>
-        <div class="panel tile-stat"><span class="label">COUNTDOWN</span><p class="big" data-a="countdown">…</p></div>
-        <div class="panel tile-stat"><span class="label">RELEASE AT</span><p data-a="release">…</p></div>
-        <div class="panel tile-stat"><span class="label">SERVER TIME</span><p data-a="server">…</p></div>
-        <div class="panel tile-stat"><span class="label">CONTENT</span><p class="big" data-a="content">…</p></div>
-      </div>
-      <div class="admin-two">
-        <section class="panel"><h2>CONTENT ON THE SERVER</h2><div class="counts" data-a="counts"></div><h3 style="margin-top:20px">HEALTH CHECK</h3><div class="warnings" data-a="warnings"></div></section>
-        <section class="panel panel-neon">
-          <h2>PREVIEW</h2>
-          <p class="muted">See the site exactly as it will look after release. Only you see it, only while logged in.</p>
-          <button class="btn mag start" type="button" data-a="preview">▶ PREVIEW RELEASED SITE ↗</button>
-        </section>
-      </div>
-      <section class="panel admin-tool" data-admin-editor>
-        <h2>CONTENT EDITOR</h2>
-        <p class="muted">Edit your committee content here — no JSON required. Your content loads automatically when you log in. <strong>Step 1:</strong> Use the tabs (GENERAL → title &amp; briefing, CHARACTERS, FACTIONS, TIMELINE, LOCATIONS, INTEL, UPDATES) to edit each section. <strong>Step 2:</strong> Click <strong>PUBLISH CHANGES ▸</strong> when done. The <strong>COMMITTEE</strong> tab runs caucuses and directives; it saves as you go and needs no publishing.</p>
-        <div class="editor-tabs" data-editor-tabs></div>
-        <div class="editor-body" data-editor-body></div>
-        <div class="admin-bar editor-footer">
-          <span class="admin-msg" data-editor-status></span>
-          <div class="admin-actions">
-            <button class="btn" type="button" data-editor-load>LOAD FROM SERVER</button>
-            <button class="btn mag" type="button" data-editor-publish>PUBLISH CHANGES ▸</button>
-          </div>
+      <div class="admin-top">
+        <span class="top-state" data-a="top-state">…</span>
+        <span class="admin-msg" data-editor-status role="status"></span>
+        <div class="admin-actions">
+          <button class="btn" type="button" data-editor-save>SAVE DRAFT</button>
+          <button class="btn" type="button" data-a="preview">PREVIEW ↗</button>
+          <button class="btn mag" type="button" data-editor-publish>PUBLISH ▸</button>
         </div>
-      </section>
+      </div>
+
+      <div class="admin-shell">
+        <nav class="admin-side" aria-label="Control room sections">
+          <button type="button" data-panel="overview">OVERVIEW</button>
+          <button type="button" data-panel="updates">POST UPDATES</button>
+          <button type="button" data-panel="content">SCENARIO</button>
+          <button type="button" data-panel="site">PAGE TEXT</button>
+          <button type="button" data-panel="committee">COMMITTEE</button>
+          <button type="button" data-panel="preview">PREVIEW</button>
+          <div class="side-foot">
+            <span class="side-session" data-a="session">SESSION</span>
+            <button type="button" class="side-small" data-a="refresh">REFRESH</button>
+            <button type="button" class="side-small" data-a="logout">LOG OUT</button>
+          </div>
+        </nav>
+
+        <div class="admin-panels">
+          <div data-a="kv-banner" class="admin-notice"></div>
+          <div data-a="draft-banner" class="admin-notice"></div>
+
+          <section data-panel-id="overview">
+            <h2 class="panel-title">OVERVIEW</h2>
+            <div class="admin-grid">
+              <div class="panel tile-stat"><span class="label">STATE</span><p class="big" data-a="state">…</p></div>
+              <div class="panel tile-stat"><span class="label">COUNTDOWN</span><p class="big" data-a="countdown">…</p></div>
+              <div class="panel tile-stat"><span class="label">CONTENT</span><p class="big" data-a="content">…</p></div>
+              <div class="panel tile-stat"><span class="label">RELEASE AT</span><p data-a="release">…</p></div>
+              <div class="panel tile-stat"><span class="label">SERVER TIME</span><p data-a="server">…</p></div>
+            </div>
+            <div class="admin-two">
+              <section class="panel"><h3>CONTENT ON THE SERVER</h3><div class="counts" data-a="counts"></div></section>
+              <section class="panel"><h3>HEALTH CHECK</h3><div class="warnings" data-a="warnings"></div></section>
+            </div>
+            <section class="panel">
+              <h3>UNDO A PUBLISH</h3>
+              <p class="muted">Go back to the version that was live before your last publish.</p>
+              <button class="btn" type="button" data-a="restore" disabled>RESTORE PREVIOUS VERSION</button>
+            </section>
+          </section>
+
+          <section data-panel-id="updates" hidden>
+            <h2 class="panel-title">POST UPDATES</h2>
+            <div data-updates-body></div>
+          </section>
+
+          <section data-panel-id="content" hidden>
+            <h2 class="panel-title">SCENARIO</h2>
+            <p class="muted">Locked by the server until release. Edit, save a draft, preview it, then publish.</p>
+            <div class="panel admin-tool" data-admin-editor>
+              <div class="editor-tabs" data-editor-tabs></div>
+              <div class="editor-body" data-editor-body></div>
+              <div class="editor-footer"><button class="btn" type="button" data-editor-load>RELOAD FROM SERVER</button></div>
+            </div>
+          </section>
+
+          <section data-panel-id="site" hidden>
+            <h2 class="panel-title">PAGE TEXT</h2>
+            <div class="panel" data-site-body></div>
+          </section>
+
+          <section data-panel-id="committee" hidden>
+            <h2 class="panel-title">COMMITTEE</h2>
+            <p class="muted">Runs live. Changes here save as you go and need no publishing.</p>
+            <div class="panel" data-committee-body></div>
+          </section>
+
+          <section data-panel-id="preview" hidden>
+            <h2 class="panel-title">PREVIEW</h2>
+            <section class="panel panel-neon">
+              <p>Opens the whole site in a new tab exactly as it will look after release, using your latest changes. Unsaved changes are saved as a draft first. Only you can see it.</p>
+              <button class="btn mag start" type="button" data-a="preview-link">▶ PREVIEW RELEASED SITE ↗</button>
+              <p class="muted" style="margin-top:14px">In the preview, switch between DRAFT, PUBLISHED and LOCKED, or press PLAY REVEAL to watch the opening.</p>
+            </section>
+          </section>
+        </div>
+      </div>
     </section>
   </main>
 
   <div data-slot="footer"></div>
   <script src="js/core/config.js" defer></script>
   <script src="js/core/util.js" defer></script>
+  <script src="js/core/sitecopy.js" defer></script>
   <script src="js/ui/layout.js" defer></script>
   <script src="js/core/audio.js" defer></script>
   <script src="js/core/release.js" defer></script>
@@ -90,6 +143,13 @@
   <script src="js/ui/modal.js" defer></script>
   <script src="js/ui/fx.js" defer></script>
   <script src="js/ui/chrome.js" defer></script>
+  <script src="js/admin/api.js" defer></script>
+  <script src="js/admin/fields.js" defer></script>
+  <script src="js/admin/dashboard.js" defer></script>
+  <script src="js/admin/editor.js" defer></script>
+  <script src="js/admin/updates.js" defer></script>
+  <script src="js/admin/site.js" defer></script>
+  <script src="js/admin/committee.js" defer></script>
   <script src="js/admin/admin.js" defer></script>
   <script src="js/main.js" defer></script>
 </body>

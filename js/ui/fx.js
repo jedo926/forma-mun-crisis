@@ -2,7 +2,7 @@
    Module file. Loaded as a classic script (works from file:// too); shares state via window.FORMA. */
 (function (F) {
   'use strict';
-  const { CONFIG, str, h, session, on, Settings, Sound, Release } = F;
+  const { CONFIG, $, str, h, session, on, Settings, Sound, Release } = F;
 
   /* ---------------- Pixel burst / release animation ---------------- */
   function pixelBurst(duration, title, subtitle, onDone) {
@@ -29,15 +29,24 @@
     };
     raf = requestAnimationFrame(step);
   }
+  function playReveal(content) {
+    Sound.play('release');
+    pixelBurst(2600, 'SIGNAL ACQUIRED', 'BRIEFING DECLASSIFIED · TAP TO CONTINUE', () => topicCutscene(content));
+  }
+  // The reveal waits its turn: not behind the intro screen, and not behind a full-screen match.
+  function whenClear(run) {
+    const intro = $('#intro');
+    if (intro && !intro.hidden) { document.addEventListener('forma:intro-closed', () => whenClear(run), { once: true }); return; }
+    if (document.fullscreenElement) { document.addEventListener('fullscreenchange', () => whenClear(run), { once: true }); return; }
+    run();
+  }
   function initReleaseFx() {
     on('forma:released', () => {
-      // Skip ceremony in admin preview — admin just wants to see the site
-      if (Release.link === 'demo' && new URLSearchParams(location.search).get('preview') === '1') return;
+      // Admin preview stays quiet on every page. Its PLAY REVEAL button runs this on request.
+      if (F.PREVIEW) return;
       const seen = session.get('releaseSeen', false);
       if (seen && Release.link !== 'demo') return;
-      session.set('releaseSeen', true);
-      Sound.play('release');
-      pixelBurst(2600, 'SIGNAL ACQUIRED', 'BRIEFING DECLASSIFIED · TAP TO CONTINUE', () => topicCutscene(Release.content));
+      whenClear(() => { session.set('releaseSeen', true); playReveal(Release.content); });
     });
   }
 
@@ -70,5 +79,5 @@
     setTimeout(close, Settings.lowMotion ? 4500 : CONFIG.cutsceneMs);
   }
 
-  Object.assign(F, { pixelBurst, initReleaseFx, topicCutscene });
+  Object.assign(F, { pixelBurst, initReleaseFx, topicCutscene, playReveal });
 })(window.FORMA = window.FORMA || {});

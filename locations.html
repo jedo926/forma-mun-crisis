@@ -24,9 +24,9 @@
   <main id="main" class="screen">
     <header class="screen-head">
       <div>
-        <p class="kicker">STAGE 06</p>
-        <h1 class="glitch">LOCATIONS</h1>
-        <p class="lead">Interactive schematic of the locations named in the approved material.</p>
+        <p class="kicker" data-edit="locations.stage-06">STAGE 06</p>
+        <h1 class="glitch" data-edit="locations.locations">LOCATIONS</h1>
+        <p class="lead" data-edit="locations.interactive-schematic-of-the-locations">Interactive schematic of the locations named in the approved material.</p>
       </div>
       <span class="lock-chip" data-lock-chip>LOCKED</span>
     </header>
@@ -39,11 +39,11 @@
             <div class="sweep" aria-hidden="true"></div>
             <div class="withheld"><span>MAP DATA WITHHELD</span><span class="blink" style="font-size:8px;color:#a3abd1">COORDINATES RELEASE WITH THE SCENARIO</span></div>
           </div>
-          <p class="map-note">NO GEOGRAPHIC DATA IS SHOWN BEFORE RELEASE</p>
+          <p class="map-note" data-edit="locations.no-geographic-data-is-shown">NO GEOGRAPHIC DATA IS SHOWN BEFORE RELEASE</p>
         </div>
         <section class="panel">
-          <h2>STAND BY</h2>
-          <p class="muted">This screen unlocks automatically when the release server confirms the transmission. No refresh needed.</p>
+          <h2 data-edit="locations.stand-by">STAND BY</h2>
+          <p class="muted" data-edit="locations.this-screen-unlocks-automatically-when">This screen unlocks automatically when the release server confirms the transmission. No refresh needed.</p>
           <div class="countdown" role="timer" aria-label="Countdown to release, 7 January 2027, 22:00 Riyadh time">
           <div class="cd-box"><span class="cd-num" data-cd="d">--</span><span class="cd-unit">DAYS</span></div>
           <div class="cd-box"><span class="cd-num" data-cd="h">--</span><span class="cd-unit">HRS</span></div>
@@ -59,6 +59,7 @@
   <div data-slot="footer"></div>
   <script src="js/core/config.js" defer></script>
   <script src="js/core/util.js" defer></script>
+  <script src="js/core/sitecopy.js" defer></script>
   <script src="js/ui/layout.js" defer></script>
   <script src="js/core/audio.js" defer></script>
   <script src="js/core/release.js" defer></script>

@@ -14,6 +14,7 @@
     const init = (F.pages || {})[PAGE];
     try { if (init) init(); } catch (e) { console.error('[FORMA] page init failed', e); }
     UI.start();
+    if (F.SiteCopy) F.SiteCopy.load();
     Release.init();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();

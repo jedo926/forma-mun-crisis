@@ -68,7 +68,7 @@
         <div class="end-actions"><button class="btn mag" type="button" data-again>PLAY AGAIN</button><button class="btn" type="button" data-exit>EXIT</button></div>
       </div>
       <button class="chip-btn arena-exit" type="button" data-exit>EXIT ✕</button>
-      <p class="arena-help">← → MOVE · ↑ JUMP · ↓ BLOCK · J PUNCH · K KICK · L SPECIAL · ESC EXIT</p>
+      <p class="arena-help" data-edit="index.move-jump-block-j-punch">← → MOVE · ↑ JUMP · ↓ BLOCK · J PUNCH · K KICK · L SPECIAL · ESC EXIT</p>
       <div class="touch-pad" data-touch aria-hidden="true">
         <div class="tp-dir"><button type="button" data-k="left" tabindex="-1">◀</button><button type="button" data-k="up" tabindex="-1">▲</button><button type="button" data-k="down" tabindex="-1">▼</button><button type="button" data-k="right" tabindex="-1">▶</button></div>
         <div class="tp-act"><button type="button" data-k="punch" tabindex="-1">P</button><button type="button" data-k="kick" tabindex="-1">K</button><button type="button" data-k="special" tabindex="-1" class="sp">SP</button></div>
@@ -81,13 +81,13 @@
         <span class="tagline" data-sel-tag>PLAYER 1</span>
         <h2 data-sel-name>UNKNOWN ENTITY</h2>
         <dl>
-          <dt>ROLE</dt><dd data-sel-role>CLASSIFIED</dd>
-          <dt>AFFILIATION</dt><dd data-sel-aff>CLASSIFIED</dd>
+          <dt data-edit="index.role">ROLE</dt><dd data-sel-role>CLASSIFIED</dd>
+          <dt data-edit="index.affiliation">AFFILIATION</dt><dd data-sel-aff>CLASSIFIED</dd>
         </dl>
         <a class="btn" href="characters.html" data-sel-link style="margin-top:auto">VIEW DOSSIER</a>
       </aside>
       <div>
-        <div class="select-head"><h2 id="select-title">CHOOSE YOUR DELEGATE</h2><p>ARROWS MOVE · ENTER SELECTS</p></div>
+        <div class="select-head"><h2 id="select-title" data-edit="index.choose-your-delegate">CHOOSE YOUR DELEGATE</h2><p data-edit="index.arrows-move-enter-selects">ARROWS MOVE · ENTER SELECTS</p></div>
         <div id="roster" class="roster" role="listbox" aria-labelledby="select-title"><noscript><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span><span class="tile locked"><span class="q">?</span><span class="tname">??????</span></span></noscript></div>
       </div>
     </section>
@@ -107,11 +107,11 @@
       </div>
       <button class="btn mag start" type="button" data-open-menu>PRESS START ▸</button>
       <div class="panel">
-        <h3>HOW TO PLAY</h3>
+        <h3 data-edit="index.how-to-play">HOW TO PLAY</h3>
         <ul style="margin:0;padding-left:20px">
-          <li>Pick a fighter, then hit ▶ PLAY (or P) to fight the CPU full screen. The two chairs are always unlocked.</li>
-          <li>Every "?" becomes a real character when the countdown ends and the server confirms release.</li>
-          <li>← → move · ↑ jump · ↓ block · J punch · K kick · L special · M sound.</li>
+          <li data-edit="index.pick-a-fighter-then-hit">Pick a fighter, then hit ▶ PLAY (or P) to fight the CPU full screen. The two chairs are always unlocked.</li>
+          <li data-edit="index.every-becomes-a-real-character">Every "?" becomes a real character when the countdown ends and the server confirms release.</li>
+          <li data-edit="index.move-jump-block-j-punch-2">← → move · ↑ jump · ↓ block · J punch · K kick · L special · M sound.</li>
         </ul>
       </div>
     </aside>
@@ -120,6 +120,7 @@
   <div data-slot="footer"></div>
   <script src="js/core/config.js" defer></script>
   <script src="js/core/util.js" defer></script>
+  <script src="js/core/sitecopy.js" defer></script>
   <script src="js/ui/layout.js" defer></script>
   <script src="js/core/audio.js" defer></script>
   <script src="js/core/release.js" defer></script>

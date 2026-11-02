@@ -24,9 +24,9 @@
   <main id="main" class="screen">
     <header class="screen-head">
       <div>
-        <p class="kicker">STAGE 10</p>
-        <h1 class="glitch">COMMITTEE</h1>
-        <p class="lead">Live proceedings — caucus status, speakers list, and public directives.</p>
+        <p class="kicker" data-edit="committee.stage-10">STAGE 10</p>
+        <h1 class="glitch" data-edit="committee.committee">COMMITTEE</h1>
+        <p class="lead" data-edit="committee.live-proceedings-caucus-status-speakers">Live proceedings — caucus status, speakers list, and public directives.</p>
       </div>
       <span class="lock-chip open">LIVE</span>
     </header>
@@ -38,7 +38,7 @@
 
     <!-- CAUCUS STATUS -->
     <section class="comm-section">
-      <h2 class="comm-heading">CAUCUS STATUS</h2>
+      <h2 class="comm-heading" data-edit="committee.caucus-status">CAUCUS STATUS</h2>
       <div class="caucus-card">
         <div id="caucus-empty" class="comm-empty">NO CAUCUS ACTIVE</div>
         <div id="caucus-info" hidden>
@@ -64,13 +64,13 @@
 
     <!-- SPEAKERS QUEUE (moderated, shown by JS) -->
     <section id="queue-section" class="comm-section" hidden>
-      <h2 class="comm-heading">SPEAKERS QUEUE</h2>
+      <h2 class="comm-heading" data-edit="committee.speakers-queue">SPEAKERS QUEUE</h2>
       <ul id="speakers-list" class="speakers-list"></ul>
     </section>
 
     <!-- PUBLIC DIRECTIVES FORUM -->
     <section class="comm-section">
-      <h2 class="comm-heading">PUBLIC DIRECTIVES</h2>
+      <h2 class="comm-heading" data-edit="committee.public-directives">PUBLIC DIRECTIVES</h2>
       <div class="directive-form">
         <input id="dir-delegation" type="text" class="input" placeholder="DELEGATION NAME" aria-label="Delegation name" maxlength="80" autocomplete="off">
         <input id="dir-code" type="text" class="input" placeholder="DELEGATE CODE" aria-label="Delegate code from your chairs" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false">
@@ -89,6 +89,7 @@
   <div data-slot="footer"></div>
   <script src="js/core/config.js" defer></script>
   <script src="js/core/util.js" defer></script>
+  <script src="js/core/sitecopy.js" defer></script>
   <script src="js/ui/layout.js" defer></script>
   <script src="js/core/audio.js" defer></script>
   <script src="js/core/release.js" defer></script>

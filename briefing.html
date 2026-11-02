@@ -24,9 +24,9 @@
   <main id="main" class="screen">
     <header class="screen-head">
       <div>
-        <p class="kicker">STAGE 01</p>
-        <h1 class="glitch">CRISIS BRIEFING</h1>
-        <p class="lead">Topic overview, context, committee format and debate scope.</p>
+        <p class="kicker" data-edit="briefing.stage-01">STAGE 01</p>
+        <h1 class="glitch" data-edit="briefing.crisis-briefing">CRISIS BRIEFING</h1>
+        <p class="lead" data-edit="briefing.topic-overview-context-committee-format">Topic overview, context, committee format and debate scope.</p>
       </div>
       <span class="lock-chip" data-lock-chip>LOCKED</span>
     </header>
@@ -35,19 +35,19 @@
       <div class="grid">
         <section class="panel panel-neon">
           <span class="label red">INCOMING</span>
-          <h2 style="margin-top:14px">AN UNSTABLE SITUATION IS DEVELOPING</h2>
+          <h2 style="margin-top:14px" data-edit="briefing.an-unstable-situation-is-developing">AN UNSTABLE SITUATION IS DEVELOPING</h2>
           <span class="redacted"></span><span class="redacted w80"></span><span class="redacted w60"></span><span class="redacted w80"></span>
-          <p class="muted">Authorized briefing pending.</p>
+          <p class="muted" data-edit="briefing.authorized-briefing-pending">Authorized briefing pending.</p>
         </section>
         <section class="panel">
-          <h2>ON RELEASE YOU RECEIVE</h2>
+          <h2 data-edit="briefing.on-release-you-receive">ON RELEASE YOU RECEIVE</h2>
           <ul style="margin:0;padding-left:22px">
-            <li>Topic overview</li><li>Background context</li><li>Committee format</li><li>Debate scope</li><li>Background reading</li>
+            <li data-edit="briefing.topic-overview">Topic overview</li><li data-edit="briefing.background-context">Background context</li><li data-edit="briefing.committee-format">Committee format</li><li data-edit="briefing.debate-scope">Debate scope</li><li data-edit="briefing.background-reading">Background reading</li>
           </ul>
         </section>
         <section class="panel">
-          <h2>STAND BY</h2>
-          <p class="muted">This screen unlocks automatically when the release server confirms the transmission. No refresh needed.</p>
+          <h2 data-edit="briefing.stand-by">STAND BY</h2>
+          <p class="muted" data-edit="briefing.this-screen-unlocks-automatically-when">This screen unlocks automatically when the release server confirms the transmission. No refresh needed.</p>
           <div class="countdown" role="timer" aria-label="Countdown to release, 7 January 2027, 22:00 Riyadh time">
           <div class="cd-box"><span class="cd-num" data-cd="d">--</span><span class="cd-unit">DAYS</span></div>
           <div class="cd-box"><span class="cd-num" data-cd="h">--</span><span class="cd-unit">HRS</span></div>
@@ -63,6 +63,7 @@
   <div data-slot="footer"></div>
   <script src="js/core/config.js" defer></script>
   <script src="js/core/util.js" defer></script>
+  <script src="js/core/sitecopy.js" defer></script>
   <script src="js/ui/layout.js" defer></script>
   <script src="js/core/audio.js" defer></script>
   <script src="js/core/release.js" defer></script>
