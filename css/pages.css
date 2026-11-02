@@ -66,7 +66,7 @@
 @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 .map .withheld { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; font-family: var(--px); font-size: 12px; color: var(--red); background: repeating-linear-gradient(0deg, rgba(0,0,0,.4) 0 3px, transparent 3px 6px); }
 .map .scramble { position: absolute; inset: 0; opacity: .35; }
-.map img.map-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .6; image-rendering: pixelated; }
+.map img.map-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; image-rendering: pixelated; }
 .pin { position: absolute; width: 28px; height: 28px; margin: -14px 0 0 -14px; background: var(--magenta); border: 3px solid var(--text); cursor: pointer; box-shadow: 3px 3px 0 #000; animation: pin 1.4s steps(2) infinite; }
 .pin:hover, .pin:focus-visible, .pin[aria-pressed="true"] { background: var(--cyan); outline: none; animation: none; transform: scale(1.25); }
 @keyframes pin { 50% { box-shadow: 3px 3px 0 #000, 0 0 0 6px rgba(255,43,214,.35); } }

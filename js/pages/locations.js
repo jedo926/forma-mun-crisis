@@ -19,7 +19,9 @@
       const mapCfg = (c.map && typeof c.map === 'object') ? c.map : {};
       if (!locs.length) { v.append(emptyNote('NO LOCATIONS PUBLISHED IN THE APPROVED MATERIAL')); return; }
       const map = h('div', { class: 'map', role: 'group', 'aria-label': str(mapCfg.label, 120) || 'Schematic map' }, h('div', { class: 'sweep', 'aria-hidden': 'true' }));
-      const img = safeUrl(mapCfg.image); if (img) map.prepend(h('img', { class: 'map-image', src: img, alt: '' }));
+      // The map stays inside the locked content, so it may be embedded. Only PNG data is allowed here.
+      const embedded = /^data:image\/png;base64,[a-z0-9+/=]+$/i.test(str(mapCfg.image, 200000)) ? mapCfg.image : '';
+      const img = embedded || safeUrl(mapCfg.image); if (img) map.prepend(h('img', { class: 'map-image', src: img, alt: '' }));
       const info = h('div', { class: 'panel panel-neon', 'aria-live': 'polite' }, h('p', { class: 'muted', text: 'Select a marker or a location from the list.' }));
       const list = h('ul', { class: 'loc-list' });
       const btns = [];

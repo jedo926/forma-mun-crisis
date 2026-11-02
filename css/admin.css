@@ -152,3 +152,6 @@ body[data-page="admin"] .topbar { position: static; }
   .admin-top .admin-actions { margin-left: 0; width: 100%; }
   .admin-top .admin-actions .btn { flex: 1 1 auto; }
 }
+
+.map-thumb { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.map-thumb img { width: 240px; height: 150px; image-rendering: pixelated; border: 2px solid var(--line); }

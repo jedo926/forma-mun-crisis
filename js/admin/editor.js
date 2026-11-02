@@ -58,7 +58,10 @@
     const M = c.map = c.map || {};
     body.append(esect('MAP'),
       erow(lbl('MAP LABEL'), tf(M.label, (v) => { M.label = v; }, 'Name of the map'), lbl('NOTE'), tf(M.note, (v) => { M.note = v; }, 'Small note under the map')),
-      efull(lbl('MAP IMAGE (OPTIONAL)'), tf(M.image, setOrClear(M, 'image'), 'Image URL or path')));
+      /^data:/.test(M.image || '')
+        ? efull(lbl('MAP IMAGE'), h('div', { class: 'map-thumb' }, h('img', { src: M.image, alt: 'Current map' }),
+          h('button', { class: 'btn', type: 'button', onclick: () => { delete M.image; A.markDirty(); renderBody(); } }, 'REMOVE MAP IMAGE')))
+        : efull(lbl('MAP IMAGE (OPTIONAL)'), tf(M.image, setOrClear(M, 'image'), 'Image URL or path')));
     const CS = c.cutscene = c.cutscene || {};
     body.append(esect('REVEAL CUTSCENE'), hint('Plays for everyone the moment the timer reaches zero. Use PLAY REVEAL in the preview to watch it.'),
       erow(lbl('KICKER'), tf(CS.kicker, (v) => { CS.kicker = v; }, 'INCOMING TRANSMISSION'), lbl('DATE TEXT'), tf(CS.date, (v) => { CS.date = v; }, 'e.g. 07 JAN 2027')),
@@ -72,7 +75,7 @@
   const OUTFITS = opts(['suit', 'hoodie', 'tshirt']);
   const FACIAL = [['', 'NONE'], ...opts(['mustache', 'thin_mustache', 'goatee', 'mustache_goatee', 'stubble'])];
   const GLASSES = [['', 'NONE'], ...opts(['thick', 'wire'])];
-  const HATS = [['', 'NONE'], ...opts(['fedora', 'helmet'])];
+  const HATS = [['', 'NONE'], ...opts(['fedora', 'helmet', 'party'])];
   const BUILDS = [['', 'NORMAL'], ...opts(['heavy', 'slim'])];
   const SPECIALS = [['', 'STANDARD MOVES ONLY'], ...opts(['projectile', 'stream', 'wave', 'dash', 'uppercut', 'counter', 'flash'])];
   const EXTRAS = ['cigar', 'camera', 'badge', 'armband'];
