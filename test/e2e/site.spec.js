@@ -428,6 +428,46 @@ test.describe('Admin — saving and publishing', () => {
   });
 });
 
+test.describe('Admin — map and party hat', () => {
+  test.skip(!ADMIN_PASS, 'set E2E_ADMIN_USER and E2E_ADMIN_PASS');
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+  const previewLocations = async (page, image) => {
+    await adminLogin(page);
+    await page.evaluate((src) => {
+      const A = window.FORMA.Admin;
+      A.content.map = Object.assign({}, A.content.map, { image: src });
+      A.content.locations = [{ id: 'one', name: 'Place', type: 'SITE', x: 50, y: 50 }];
+    }, image);
+    await page.locator('[data-a="preview"]').click();
+    const frame = page.frameLocator('[data-prev-frame] iframe');
+    await frame.locator('#site-nav a', { hasText: 'LOCATIONS' }).click();
+    await expect(frame.locator('.map .pin')).toHaveCount(1);
+    return frame;
+  };
+
+  test('an embedded PNG shows as the map', async ({ page }) => {
+    const frame = await previewLocations(page, PNG);
+    await expect(frame.locator('img.map-image')).toHaveAttribute('src', PNG);
+  });
+
+  test('embedded data that is not a PNG is refused', async ({ page }) => {
+    const frame = await previewLocations(page, 'data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==');
+    await expect(frame.locator('img.map-image')).toHaveCount(0);
+  });
+
+  test('the party hat draws on a fighter', async ({ page }) => {
+    await page.goto('/characters.html');
+    const drawn = await page.evaluate(() => {
+      const F = window.FORMA;
+      const base = { name: 'Test', look: { skin: '#c68a5c', hair: { style: 'close', color: '#1c1530' }, outfit: { type: 'suit', jacket: '#2a2c33', tie: '#1a1b22' } } };
+      const data = (m) => F.Sprite.toCanvas(m, { scale: 1 }).toDataURL();
+      return data({ ...base, key: 'plain' }) !== data({ ...base, key: 'hat', look: { ...base.look, hat: 'party' } });
+    });
+    expect(drawn).toBe(true);
+  });
+});
+
 test.describe('Admin — chair report', () => {
   test.skip(!ADMIN_PASS || !ALLOW_WRITES, 'writes data: local server only (npm run test:local)');
 

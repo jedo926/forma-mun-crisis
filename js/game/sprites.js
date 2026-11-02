@@ -24,7 +24,7 @@
     const HAIR = ['close', 'crew', 'side_part', 'slick', 'receding', 'bald', 'mop', 'wavy', 'tall', 'curly'];
     const FACIAL = ['mustache', 'thin_mustache', 'goatee', 'mustache_goatee', 'stubble'];
     const GLASSES = ['thick', 'wire'];
-    const HATS = ['fedora', 'helmet'];
+    const HATS = ['fedora', 'helmet', 'party'];
     const OUTFITS = ['suit', 'hoodie', 'tshirt'];
     const EXTRAS = ['cigar', 'camera', 'badge', 'armband'];
     const FRAMES = ['idle', 'walk', 'punch', 'kick', 'hit', 'win', 'block', 'jump'];
@@ -78,7 +78,7 @@
         brows: L.brows === 'thick' ? 'thick' : null,
         glasses: GLASSES.includes(L.glasses) ? L.glasses : null,
         hat: HATS.includes(L.hat) ? L.hat : null,
-        hatColor: hex(L.hatColor, L.hat === 'helmet' ? '#e8ecf2' : '#4a4036'),
+        hatColor: hex(L.hatColor, L.hat === 'helmet' ? '#e8ecf2' : (L.hat === 'party' ? '#fbfbff' : '#4a4036')),
         hatCard: !!L.hatCard,
         ears: L.ears === 'big' ? 'big' : null,
         jowls: !!L.jowls,
@@ -211,6 +211,12 @@
         [[0, 15, 20], [1, 13, 22], [2, 12, 23], [3, 12, 23], [4, 12, 23]].forEach(([y, a, b]) => rect(a + lx, y + up, b - a + 1, 1, L.hatColor, PART.HAT));
         rect(12 + lx, 5 + up, 14, 1, dk(L.hatColor, 0.2), PART.HAT);
         put(15 + lx, 1 + up, '#ffffff', PART.HAT); put(16 + lx, 1 + up, '#ffffff', PART.HAT);
+      } else if (L.hat === 'party') {
+        // Wide tilted cone, confetti and a pompom, so it reads as a birthday hat at any size.
+        // Drawn as a prop: the shading pass would turn the white grey.
+        [[1, 18, 20], [2, 17, 20], [3, 16, 21], [4, 15, 21], [5, 14, 22], [6, 13, 22]].forEach(([y, a, b]) => rect(a + lx, y + up, b - a + 1, 1, L.hatColor, PART.PROP));
+        [[19, 2, '#00d8e0'], [17, 3, '#ff2bd6'], [20, 3, '#ffb52e'], [16, 4, '#00d8e0'], [18, 4, '#7857ff'], [21, 4, '#ff2bd6'], [15, 5, '#ffb52e'], [19, 5, '#00d8e0'], [14, 6, '#ff2bd6'], [17, 6, '#ffb52e'], [21, 6, '#7857ff']].forEach(([x, y, col]) => put(x + lx, y + up, col, PART.PROP));
+        [[19, 0], [20, 0], [21, 0], [20, 1], [21, 1]].forEach(([x, y]) => put(x + lx, y + up, '#ff2bd6', PART.PROP));
       }
       // 8. front arm (in front of everything)
       arm(pose.front, o.jacket, skin, PART.ARM, PART.HAND, false);
