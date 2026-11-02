@@ -35,6 +35,7 @@
     }
     Sound.play('release');
     toast('CHAIR REPORT UPLOADED');
+    if (A.reportChanged) A.reportChanged();
     await A.refresh();
   }
 
@@ -51,7 +52,7 @@
   async function remove() {
     if (!confirm('Remove the chair report from the site?')) return;
     const { res, data } = await A.post('delete-report');
-    if (res.ok && data && data.ok) { toast('CHAIR REPORT REMOVED'); await A.refresh(); } else toast('COULD NOT REMOVE IT');
+    if (res.ok && data && data.ok) { toast('CHAIR REPORT REMOVED'); if (A.reportChanged) A.reportChanged(); await A.refresh(); } else toast('COULD NOT REMOVE IT');
   }
 
   function render() {

@@ -11,7 +11,6 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const arr = (v) => (Array.isArray(v) ? v : []);
   const str = (v, max = 6000) => (typeof v === 'string' ? v.slice(0, max) : (typeof v === 'number' ? String(v) : ''));
-  const reducedMotionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
 
   function h(tag, attrs, ...kids) {
     const n = document.createElement(tag);
@@ -66,5 +65,5 @@
   const stampFmt = tzFmt({ day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
   function fmtStamp(v) { const t = Date.parse(v); return Number.isFinite(t) ? stampFmt.format(t).toUpperCase() : str(v, 60); }
 
-  Object.assign(F, { $, $$, pad, clamp, arr, str, reducedMotionQuery, h, paragraphs, safeUrl, makeStore, store, session, isTyping, emit, on, toast, tzFmt, clockFmt, stampFmt, fmtStamp });
+  Object.assign(F, { $, $$, pad, clamp, arr, str, h, paragraphs, safeUrl, makeStore, store, session, isTyping, emit, on, toast, tzFmt, clockFmt, stampFmt, fmtStamp });
 })(window.FORMA = window.FORMA || {});

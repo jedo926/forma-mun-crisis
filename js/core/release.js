@@ -125,11 +125,19 @@
           this.setContent(data.content);
           F.SiteCopy.apply(data.site);
           reveal.hidden = false;
+          if (arr(data.content.resources).some((r) => r && r.report)) {
+            const pdf = await fetch('/api/report?t=' + Date.now(), { cache: 'no-store', headers: { Authorization: 'Bearer ' + token } });
+            if (pdf.ok) this.bindReport(URL.createObjectURL(await pdf.blob()));
+          }
         } else {
           label.textContent = res.status === 401 ? 'ADMIN PREVIEW: SESSION EXPIRED · LOG IN AGAIN' : 'ADMIN PREVIEW: CONTENT NOT AVAILABLE';
         }
       } catch (e) { label.textContent = 'ADMIN PREVIEW: NO CONNECTION'; }
       emit('forma:status');
+    },
+    /** Report links are locked before release, so admin views point them at a private copy. */
+    bindReport(url) {
+      $$('a[href="api/report"]').forEach((a) => { a.href = url; a.removeAttribute('rel'); });
     },
     keepParam(param) {
       $$('a[href]').forEach((a) => {

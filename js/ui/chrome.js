@@ -2,16 +2,14 @@
    Module file. Loaded as a classic script (works from file:// too); shares state via window.FORMA. */
 (function (F) {
   'use strict';
-  const { $, $$, reducedMotionQuery, isTyping, toast, Settings, Sound, Music, Modal, pixelBurst } = F;
+  const { $, $$, isTyping, toast, Settings, Sound, Music, Modal, pixelBurst } = F;
 
   /* ---------------- Shared chrome: nav, settings, transitions, keys ---------------- */
   function initChrome() {
     $$('[data-toggle-sound]').forEach((b) => b.addEventListener('click', () => Settings.toggleSound()));
     $$('[data-toggle-music]').forEach((b) => b.addEventListener('click', () => Settings.toggleMusic()));
-    $$('[data-toggle-fx]').forEach((b) => b.addEventListener('click', () => Settings.toggleFx()));
     const navBtn = $('.nav-toggle'); const nav = $('#site-nav');
     if (navBtn && nav) navBtn.addEventListener('click', () => { const open = !nav.classList.contains('open'); nav.classList.toggle('open', open); navBtn.setAttribute('aria-expanded', String(open)); Sound.play('move'); });
-    if (reducedMotionQuery.addEventListener) reducedMotionQuery.addEventListener('change', () => Settings.apply());
 
     // Arcade page transition (real navigation; browser history/back work normally).
     document.addEventListener('click', (e) => {
