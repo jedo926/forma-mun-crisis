@@ -112,11 +112,11 @@ button { font: inherit; color: inherit; }
 @keyframes pulse { 50% { box-shadow: 4px 4px 0 var(--magenta-d), 0 0 34px rgba(255,43,214,.75); } }
 
 /* ---------- Countdown ---------- */
-.countdown { display: flex; gap: 10px; }
-.cd-box { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 4px; background: var(--bg); border: 3px solid var(--cyan); box-shadow: 4px 4px 0 var(--violet); }
+.countdown { display: flex; gap: 10px; container-type: inline-size; }
+.cd-box { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 2px; background: var(--bg); border: 3px solid var(--cyan); box-shadow: 4px 4px 0 var(--violet); }
 .cd-box:nth-child(n+3) { border-color: var(--magenta); }
-.cd-num { font-family: var(--px); font-size: clamp(16px, 2vw, 26px); color: var(--cyan); white-space: nowrap; }
-.signal .cd-num { font-size: clamp(14px, 1.5vw, 22px); }
+.cd-num { font-family: var(--px); font-size: 14px; color: var(--cyan); white-space: nowrap; }
+@supports (font-size: 1cqw) { .cd-num { font-size: clamp(10px, 5.9cqw, 26px); } }
 .countdown { flex-wrap: nowrap; }
 .cd-box:first-child { flex: 1.6; }
 .cd-box:nth-child(n+3) .cd-num { color: var(--magenta); }

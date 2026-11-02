@@ -14,7 +14,7 @@
 
   const FRAME_NAME = 'forma-embed';
   // Values that aren't prose: ids, colours, coordinates and fixed choices stay in the forms.
-  const NOT_TEXT = new Set(['id', 'members', 'relations', 'look', 'color', 'kind', 'priority', 'time', 'x', 'y', 'url', 'portrait', 'image', 'classification', 'type', 'updates']);
+  const NOT_TEXT = new Set(['id', 'members', 'relations', 'look', 'color', 'kind', 'priority', 'time', 'x', 'y', 'url', 'portrait', 'image', 'icon', 'classification', 'type', 'updates']);
   const norm = (s) => String(s).replace(/\s+/g, ' ').trim();
   const PARA = /\n{2,}/;
 
