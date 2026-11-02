@@ -428,7 +428,7 @@ test.describe('Admin — saving and publishing', () => {
   });
 });
 
-test.describe('Admin — map and party hat', () => {
+test.describe('Map, fighters and countdown', () => {
   test.skip(!ADMIN_PASS, 'set E2E_ADMIN_USER and E2E_ADMIN_PASS');
   const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
@@ -456,15 +456,45 @@ test.describe('Admin — map and party hat', () => {
     await expect(frame.locator('img.map-image')).toHaveCount(0);
   });
 
-  test('the party hat draws on a fighter', async ({ page }) => {
+  test('a location symbol shows on its pin and in its details', async ({ page }) => {
+    await adminLogin(page);
+    await page.evaluate((src) => {
+      window.FORMA.Admin.content.locations = [{ id: 'one', name: 'Place', type: 'SITE', x: 50, y: 50, icon: src, symbol: 'THE SYMBOL', symbolNote: 'Why it matters' }];
+    }, PNG);
+    await page.locator('[data-a="preview"]').click();
+    const frame = page.frameLocator('[data-prev-frame] iframe');
+    await frame.locator('#site-nav a', { hasText: 'LOCATIONS' }).click();
+    await frame.locator('.map .pin.has-icon').click();
+    await expect(frame.locator('.loc-symbol')).toContainText('THE SYMBOL');
+    await expect(frame.locator('.map-wrap')).not.toContainText('[object');
+  });
+
+  test('content can add pixel art to a fighter, and bad art is ignored', async ({ page }) => {
     await page.goto('/characters.html');
-    const drawn = await page.evaluate(() => {
+    const result = await page.evaluate(() => {
       const F = window.FORMA;
-      const base = { name: 'Test', look: { skin: '#c68a5c', hair: { style: 'close', color: '#1c1530' }, outfit: { type: 'suit', jacket: '#2a2c33', tie: '#1a1b22' } } };
-      const data = (m) => F.Sprite.toCanvas(m, { scale: 1 }).toDataURL();
-      return data({ ...base, key: 'plain' }) !== data({ ...base, key: 'hat', look: { ...base.look, hat: 'party' } });
+      const look = { skin: '#c68a5c', hair: { style: 'close', color: '#1c1530' }, outfit: { type: 'suit', jacket: '#2a2c33', tie: '#1a1b22' } };
+      const data = (key, extra) => F.Sprite.toCanvas({ key, name: key, look: { ...look, ...extra } }, { scale: 1 }).toDataURL();
+      return { art: data('plain', {}) !== data('art', { overlay: [[14, 2, 6, 6, '#ffffff']] }), bad: data('plain2', {}) === data('bad', { overlay: [[1, 2], 'x', [1, 2, 3, 4, 'red']] }) };
     });
-    expect(drawn).toBe(true);
+    expect(result).toEqual({ art: true, bad: true });
+  });
+
+  test('countdown digits fit inside their boxes at every width', async ({ page }) => {
+    for (const width of [1920, 1440, 1100, 820, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const file of ['/briefing.html', '/index.html']) {
+        await page.goto(file);
+        await page.waitForTimeout(400);
+        // The local server's far-future date gives a five-digit day count; measure a real one.
+        const worst = await page.locator('.cd-box').evaluateAll((boxes) => Math.max(...boxes.map((b) => {
+          b.querySelector('.cd-num').textContent = '888';
+          const n = b.querySelector('.cd-num').getBoundingClientRect(), r = b.getBoundingClientRect();
+          return Math.max(r.left - n.left, n.right - r.right);
+        })));
+        expect(worst, file + ' at ' + width).toBeLessThanOrEqual(-1);
+      }
+    }
   });
 });
 

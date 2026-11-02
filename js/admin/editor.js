@@ -75,7 +75,7 @@
   const OUTFITS = opts(['suit', 'hoodie', 'tshirt']);
   const FACIAL = [['', 'NONE'], ...opts(['mustache', 'thin_mustache', 'goatee', 'mustache_goatee', 'stubble'])];
   const GLASSES = [['', 'NONE'], ...opts(['thick', 'wire'])];
-  const HATS = [['', 'NONE'], ...opts(['fedora', 'helmet', 'party'])];
+  const HATS = [['', 'NONE'], ...opts(['fedora', 'helmet'])];
   const BUILDS = [['', 'NORMAL'], ...opts(['heavy', 'slim'])];
   const SPECIALS = [['', 'STANDARD MOVES ONLY'], ...opts(['projectile', 'stream', 'wave', 'dash', 'uppercut', 'counter', 'flash'])];
   const EXTRAS = ['cigar', 'camera', 'badge', 'armband'];
@@ -180,6 +180,7 @@
   const locationCard = (l, i) => ecard(
     erow(lbl('NAME'), tf(l.name, (v) => { l.name = v; }, 'Location name'), lbl('TYPE'), tf(l.type, (v) => { l.type = v; }, 'e.g. SITE'), remove('locations', i)),
     erow(lbl('MAP X %'), coord(l, 'x'), lbl('MAP Y %'), coord(l, 'y')),
+    erow(lbl('SYMBOL NAME'), tf(l.symbol, setOrClear(l, 'symbol'), 'e.g. THE BRIDGE'), lbl('WHAT IT MEANS'), tf(l.symbolNote, setOrClear(l, 'symbolNote'), 'One line on why')),
     efull(lbl('DESCRIPTION'), paras(l, 'description', 'Location description…')));
   const renderLocations = (body) => listTab(body, 'Points on the map. X and Y are percentages (0–100) of the map size.', 'locations', locationCard, 'ADD LOCATION',
     () => ({ id: 'loc' + Date.now(), name: '', type: 'SITE', x: 50, y: 50, description: '' }));

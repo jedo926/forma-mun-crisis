@@ -121,3 +121,15 @@
 .chair h2 { margin: 0; font-family: var(--px); font-weight: 400; font-size: clamp(16px, 2.2vw, 22px); line-height: 1.4; }
 .chair .bio { margin: 0; color: var(--muted); }
 .stat-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Location symbols */
+.pin.has-icon { width: 40px; height: 40px; margin: -20px 0 0 -20px; padding: 0; display: grid; place-items: center; background: #0b0c1c; border-color: var(--magenta); z-index: 2; }
+.pin.has-icon img { width: 32px; height: 32px; image-rendering: pixelated; pointer-events: none; }
+.pin.has-icon:hover, .pin.has-icon:focus-visible, .pin.has-icon[aria-pressed="true"] { background: #0b0c1c; border-color: var(--cyan); z-index: 3; }
+.loc-list button:has(img) { display: flex; align-items: center; gap: 10px; }
+.loc-list button img { flex: none; width: 24px; height: 24px; image-rendering: pixelated; }
+.loc-symbol { display: flex; gap: 16px; align-items: center; margin-top: 18px; padding-top: 16px; border-top: 2px solid var(--line); }
+.loc-symbol img { flex: none; width: 80px; height: 80px; padding: 6px; background: #0b0c1c; border: 3px solid var(--magenta); image-rendering: pixelated; }
+.loc-symbol strong { font-family: var(--px); font-size: 10px; line-height: 1.6; color: var(--magenta); font-weight: 400; }
+.loc-symbol p { margin: 8px 0 0; }
+@media (max-width: 560px) { .pin.has-icon { width: 30px; height: 30px; margin: -15px 0 0 -15px; } .pin.has-icon img { width: 24px; height: 24px; } }

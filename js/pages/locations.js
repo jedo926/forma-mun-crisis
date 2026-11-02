@@ -5,6 +5,9 @@
   const { $, pad, clamp, arr, str, h, paragraphs, safeUrl, on, Settings, Sound, showReleased, emptyNote } = F;
 
   /* ---------------- Locations ---------------- */
+  // Map art stays inside the locked content, so it may be embedded. Only PNG data is allowed.
+  const pngData = (v) => (/^data:image\/png;base64,[a-z0-9+/=]+$/i.test(str(v, 200000)) ? v : '');
+
   function initLocations() {
     const scr = $('.map .scramble');
     if (scr) {
@@ -19,9 +22,7 @@
       const mapCfg = (c.map && typeof c.map === 'object') ? c.map : {};
       if (!locs.length) { v.append(emptyNote('NO LOCATIONS PUBLISHED IN THE APPROVED MATERIAL')); return; }
       const map = h('div', { class: 'map', role: 'group', 'aria-label': str(mapCfg.label, 120) || 'Schematic map' }, h('div', { class: 'sweep', 'aria-hidden': 'true' }));
-      // The map stays inside the locked content, so it may be embedded. Only PNG data is allowed here.
-      const embedded = /^data:image\/png;base64,[a-z0-9+/=]+$/i.test(str(mapCfg.image, 200000)) ? mapCfg.image : '';
-      const img = embedded || safeUrl(mapCfg.image); if (img) map.prepend(h('img', { class: 'map-image', src: img, alt: '' }));
+      const img = pngData(mapCfg.image) || safeUrl(mapCfg.image); if (img) map.prepend(h('img', { class: 'map-image', src: img, alt: '' }));
       const info = h('div', { class: 'panel panel-neon', 'aria-live': 'polite' }, h('p', { class: 'muted', text: 'Select a marker or a location from the list.' }));
       const list = h('ul', { class: 'loc-list' });
       const btns = [];
@@ -29,16 +30,19 @@
         const l = locs[i]; btns.forEach((b) => b.forEach((x) => x && x.setAttribute('aria-pressed', 'false')));
         btns[i].forEach((x) => x && x.setAttribute('aria-pressed', 'true'));
         info.innerHTML = '';
-        info.append(h('span', { class: 'label cyan', text: str(l.type, 40) || 'LOCATION' }), h('h2', { style: 'margin-top:14px', text: str(l.name, 120) }), paragraphs(l.description));
+        const icon = pngData(l.icon);
+        info.append(h('span', { class: 'label cyan', text: str(l.type, 40) || 'LOCATION' }), h('h2', { style: 'margin-top:14px', text: str(l.name, 120) }), ...paragraphs(l.description));
+        if (icon || str(l.symbol)) info.append(h('div', { class: 'loc-symbol' }, icon ? h('img', { src: icon, alt: '' }) : null, h('div', null, h('strong', { text: str(l.symbol, 60) }), h('p', { class: 'muted', text: str(l.symbolNote, 300) }))));
         Sound.play('select');
       };
       locs.forEach((l, i) => {
         const x = Number(l.x), y = Number(l.y); let pin = null;
         if (Number.isFinite(x) && Number.isFinite(y)) {
-          pin = h('button', { class: 'pin', type: 'button', 'aria-pressed': 'false', 'aria-label': str(l.name, 120), title: str(l.name, 120), style: `left:${clamp(x, 0, 100)}%;top:${clamp(y, 0, 100)}%` });
+          pin = h('button', { class: pngData(l.icon) ? 'pin has-icon' : 'pin', type: 'button', 'aria-pressed': 'false', 'aria-label': str(l.name, 120), title: str(l.name, 120), style: `left:${clamp(x, 0, 100)}%;top:${clamp(y, 0, 100)}%` });
+          if (pngData(l.icon)) pin.append(h('img', { src: l.icon, alt: '' }));
           pin.addEventListener('click', () => pick(i)); map.append(pin);
         }
-        const lb = h('button', { type: 'button', 'aria-pressed': 'false', text: pad(i + 1) + ' · ' + str(l.name, 120) });
+        const lb = h('button', { type: 'button', 'aria-pressed': 'false' }, pngData(l.icon) ? h('img', { src: l.icon, alt: '' }) : null, pad(i + 1) + ' · ' + str(l.name, 120));
         lb.addEventListener('click', () => pick(i)); list.append(h('li', null, lb));
         btns.push([pin, lb]);
       });
