@@ -178,6 +178,7 @@ test.describe('Admin — login flow', () => {
 
   test('dashboard shows release date and content status', async ({ page }) => {
     await adminLogin(page);
+    await openPanel(page, 'overview');
     await expect(page.locator('[data-a="release"]')).toContainText(process.env.E2E_LOCAL ? '2099' : '2027');
     // Content health (OK or INVALID)
     const contentEl = page.locator('[data-a="content"]');
@@ -245,40 +246,118 @@ test.describe('Admin — content editor', () => {
   });
 });
 
-test.describe('Admin — preview', () => {
+test.describe('Admin — edit site and preview', () => {
   test.skip(!ADMIN_PASS, 'set E2E_ADMIN_USER and E2E_ADMIN_PASS');
 
-  async function openPreview(page, context) {
-    const [tab] = await Promise.all([context.waitForEvent('page'), page.locator('[data-a="preview"]').click()]);
-    await tab.waitForURL(/preview=1/);
+  const frameOf = (page, box) => page.frameLocator(`${box} iframe`);
+
+  test('EDIT SITE opens first and shows a real page', async ({ page }) => {
+    await adminLogin(page);
+    await expect(page.locator('[data-panel-id="edit"]')).toBeVisible();
+    await expect(frameOf(page, '[data-vis-frame]').locator('main')).toBeVisible();
+  });
+
+  test('moving between pages keeps the content', async ({ page }) => {
+    await adminLogin(page);
+    await page.locator('[data-vis-page="rules.html"]').click();
+    await expect(frameOf(page, '[data-vis-frame]').locator('main h1')).toContainText('RULES');
+    await page.locator('[data-vis-page="briefing.html"]').click();
+    await expect(frameOf(page, '[data-vis-frame]').locator('[data-release-status]').first()).toHaveText('DECLASSIFIED');
+  });
+
+  test('clicking public text edits it, and preview shows it unsaved', async ({ page }) => {
+    await adminLogin(page);
+    await page.locator('[data-vis-page="rules.html"]').click();
+    const lead = frameOf(page, '[data-vis-frame]').locator('.lead');
+    await expect(lead).toHaveAttribute('data-vedit', 'site');
+    await lead.click();
+    await page.keyboard.press('Control+A');
+    await page.keyboard.type('Edited by clicking');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('[data-editor-status]')).toHaveText('UNSAVED CHANGES');
+    await page.locator('[data-a="preview"]').click();
+    const frame = frameOf(page, '[data-prev-frame]');
+    await frame.locator('#site-nav a', { hasText: 'RULES' }).click();
+    await expect(frame.locator('.lead')).toHaveText('Edited by clicking');
+    await page.locator('[data-prev-close]').click();
+    await expect(page.locator('[data-preview-overlay]')).toBeHidden();
+  });
+
+  test('clicking scenario text edits the content everywhere it appears', async ({ page }) => {
+    await adminLogin(page);
+    await page.locator('[data-vis-page="briefing.html"]').click();
+    const title = frameOf(page, '[data-vis-frame]').locator('[data-vedit="scenario"]').first();
+    await title.click();
+    await page.keyboard.press('Control+A');
+    await page.keyboard.type('New scenario text');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('[data-editor-status]')).toHaveText('UNSAVED CHANGES');
+    const found = await page.evaluate(() => JSON.stringify(window.FORMA.Admin.content).includes('New scenario text'));
+    expect(found).toBe(true);
+  });
+
+  test('Esc cancels an edit', async ({ page }) => {
+    await adminLogin(page);
+    await page.locator('[data-vis-page="rules.html"]').click();
+    const lead = frameOf(page, '[data-vis-frame]').locator('.lead');
+    const before = await lead.textContent();
+    await lead.click();
+    await page.keyboard.type('x');
+    await page.keyboard.press('Escape');
+    await expect(lead).toHaveText(before);
+  });
+
+  test('links in the editor switch page instead of leaving it', async ({ page }) => {
+    await adminLogin(page);
+    await frameOf(page, '[data-vis-frame]').locator('main a[href^="characters"], main a[href^="chairs"]').first().click();
+    await expect(page.locator('[data-vis-page].active')).toHaveText(/CHARACTERS|CHAIRS/);
+  });
+
+  test('preview opens in the panel with no new tab, and plays the reveal', async ({ page, context }) => {
+    await adminLogin(page);
+    const tabs = context.pages().length;
+    await page.locator('[data-a="preview"]').click();
+    const frame = frameOf(page, '[data-prev-frame]');
+    await expect(frame.locator('[data-release-status]').first()).toHaveText('DECLASSIFIED');
+    expect(context.pages().length).toBe(tabs);
+    await page.locator('[data-prev-reveal]').click();
+    await frame.locator('.release-fx').click();
+    await expect(frame.locator('.cutscene')).toBeVisible();
+  });
+
+  test('preview stays on across links inside the frame', async ({ page }) => {
+    await adminLogin(page);
+    await page.locator('[data-a="preview"]').click();
+    const frame = frameOf(page, '[data-prev-frame]');
+    await frame.locator('#site-nav a', { hasText: 'BRIEFING' }).click();
+    await expect(frame.locator('main h1')).toContainText('BRIEFING');
+    await expect(frame.locator('[data-release-status]').first()).toHaveText('DECLASSIFIED');
+  });
+
+  test('BEFORE RELEASE shows the locked site', async ({ page }) => {
+    await adminLogin(page);
+    await page.locator('[data-a="preview"]').click();
+    await page.locator('[data-prev-view="before"]').click();
+    const frame = frameOf(page, '[data-prev-frame]');
+    await expect(frame.locator('main')).toBeVisible();
+    await expect(frame.locator('[data-release-status]').first()).toHaveText('LOCKED');
+    await expect(page.locator('[data-prev-reveal]')).toBeHidden();
+  });
+
+  test('a page named like the frame gets no content without a login', async ({ page }) => {
+    await page.goto('/briefing.html');
+    await page.evaluate(() => { window.name = 'forma-embed'; });
+    await page.reload();
+    await expect(page.locator('main')).toContainText('STAND BY');
+    await expect(page.locator('[data-release-status]').first()).not.toHaveText('DECLASSIFIED');
+  });
+
+  test('saved draft opens in a new tab with the preview bar', async ({ page, context }) => {
+    await adminLogin(page);
+    await page.locator('[data-a="preview"]').click();
+    const [tab] = await Promise.all([context.waitForEvent('page'), page.locator('[data-prev-newtab]').click()]);
     await expect(tab.locator('[data-preview-bar]')).toBeVisible();
-    await expect(tab.locator('.preview-label')).toContainText(/PREVIEW ·/);
-    return tab;
-  }
-
-  test('preview stays on across nav links and reloads, and the token leaves the URL', async ({ page, context }) => {
-    await adminLogin(page);
-    const tab = await openPreview(page, context);
-    expect(tab.url()).not.toContain('at=');
-    await tab.locator('#site-nav a', { hasText: 'BRIEFING' }).click();
-    await tab.waitForURL(/briefing/);
-    await expect(tab.locator('.preview-label')).toContainText(/PREVIEW ·/);
-    await tab.reload();
     await expect(tab.locator('[data-release-status]').first()).toHaveText('DECLASSIFIED');
-  });
-
-  test('PLAY REVEAL plays the opening', async ({ page, context }) => {
-    await adminLogin(page);
-    const tab = await openPreview(page, context);
-    await tab.locator('[data-preview-reveal]').click();
-    await expect(tab.locator('.release-fx')).toBeVisible();
-    await tab.locator('.release-fx').click();
-    await expect(tab.locator('.cutscene')).toBeVisible();
-  });
-
-  test('EXIT returns to the public site', async ({ page, context }) => {
-    await adminLogin(page);
-    const tab = await openPreview(page, context);
     await tab.locator('[data-preview-exit]').click();
     await expect(tab.locator('[data-preview-bar]')).toHaveCount(0);
   });
@@ -333,6 +412,7 @@ test.describe('Admin — saving and publishing', () => {
     await visitor.context().close();
     await openPanel(page, 'overview');
     await page.locator('[data-a="restore"]').click();
+    await openPanel(page, 'content');
     await expect(page.locator('[data-editor-status]')).toContainText('SAME AS PUBLISHED');
   });
 });

@@ -88,3 +88,8 @@ Run on 25 Oct 2026 with Node 22 and headless Chromium (Playwright), against a lo
 - **Browser, local server with an in-memory KV:** 36/36 passed (`npm run test:local`).
 - **With the real scenario, on a local server:** an unsaved edit appeared in the preview; preview stayed on through the home card, nav, menu and reload; a publish with no edits matched the master exactly in the earlier pass; the rebuilt site matched the FULL build on every shared page and all 22 dossiers, apart from the real chair bios.
 - **Release moment, local:** an open page flipped by itself and played the reveal; a visitor on the Home intro got the reveal after the intro closed; a late visitor saw it once.
+
+## Visual editor and in-panel preview (3 Nov 2026)
+
+- **Browser, local server with an in-memory KV:** 44/44 passed. Added click-to-edit for public and scenario text, Esc to cancel, page switching, preview with no new tab, and a page named like the admin frame getting no content.
+- **Preview:** the earlier new-tab version could not be reproduced as failing in real Chrome, so the cause of the live report is not confirmed. Preview no longer opens a tab at all.

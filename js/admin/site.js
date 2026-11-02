@@ -70,6 +70,7 @@
 
   A.renderSite = render;
   A.onPanel.site = async () => {
+    render();
     if (!pages) {
       render();
       try { pages = await readPages(); } catch (e) { pages = []; }

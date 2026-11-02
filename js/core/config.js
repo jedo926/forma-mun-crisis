@@ -43,9 +43,11 @@
   // Preview stays on for the whole tab, so links built at any time keep working.
   let previewTab = false;
   try { previewTab = sessionStorage.getItem('forma:previewMode') === 'true'; } catch (e) { /* storage unavailable */ }
-  const PREVIEW = PAGE !== 'admin' && (QS.get('preview') === '1' || previewTab);
+  // A frame inside the admin panel: the panel supplies the content. It grants nothing by itself.
+  const EMBED = PAGE !== 'admin' && window.name === 'forma-embed';
+  const PREVIEW = PAGE !== 'admin' && (EMBED || QS.get('preview') === '1' || previewTab);
   const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
   if (IS_TOUCH) document.documentElement.classList.add('touch');
 
-  Object.assign(F, { CONFIG, NAV, DEFAULT_RELEASE_MS, PAGE, QS, DEMO, PREVIEW, IS_TOUCH });
+  Object.assign(F, { CONFIG, NAV, DEFAULT_RELEASE_MS, PAGE, QS, DEMO, PREVIEW, EMBED, IS_TOUCH });
 })(window.FORMA = window.FORMA || {});

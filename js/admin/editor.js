@@ -3,7 +3,7 @@
    fields without a control are left untouched. */
 (function (F) {
   'use strict';
-  const { $, $$, h, arr, toast, session, Sound } = F;
+  const { $, h, arr, toast, Sound } = F;
   const A = F.Admin;
   const { lbl, erow, efull, ecard, hint, esect, dbtn, abtn, tf, ta, dd, cpick, checkbox, paras, setOrClear, fold } = A.ui;
 
@@ -244,6 +244,7 @@
       renderDraftBanner(data.fromDraft, data.savedAt);
       renderBody();
       if (A.renderSite) A.renderSite();
+      if (A.onContent) A.onContent();
     } else if (res.status === 404) {
       A.contentReady = true;
       setSaveState('NO CONTENT ON THE SERVER YET');
@@ -272,15 +273,6 @@
     return false;
   }
 
-  /** Opens the tab first (browsers block tabs opened after a delay), then saves, then points it at the site. */
-  async function preview() {
-    const tab = window.open('', '_blank');
-    if (!tab) { toast('YOUR BROWSER BLOCKED THE PREVIEW TAB · ALLOW POP-UPS FOR THIS SITE'); return; }
-    tab.opener = null;
-    if (A.dirty && !(await saveDraft())) { tab.close(); return; }
-    tab.location.href = 'index.html?preview=1#at=' + encodeURIComponent(A.token());
-  }
-
   async function publish(confirmPublic) {
     if (!A.contentReady) { setSaveState('CONTENT NOT LOADED YET · PRESS RELOAD', 'bad'); Sound.play('error'); return; }
     if (A.status && A.status.released && !confirmPublic && !confirm('The site is released. Publishing changes what delegates see now. Continue?')) return;
@@ -300,7 +292,7 @@
     if (res.ok && data && data.ok) {
       A.dirty = false;
       Sound.play('release');
-      setSaveState(A.status && A.status.released ? '✓ PUBLISHED · LIVE NOW' : '✓ PUBLISHED · UNLOCKS AT RELEASE', 'ok');
+      setSaveState(A.status && A.status.released ? '✓ PUBLISHED · LIVE NOW' : '✓ PUBLISHED · PUBLIC TEXT LIVE, SCENARIO AT RELEASE', 'ok');
       renderDraftBanner(false);
       A.refresh();
       return;
@@ -330,8 +322,6 @@
     $('[data-editor-load]').addEventListener('click', reload);
     $('[data-editor-publish]').addEventListener('click', () => publish(false));
     $('[data-editor-save]').addEventListener('click', saveDraft);
-    $('[data-a="preview"]').addEventListener('click', preview);
-    $$('[data-a="preview-link"]').forEach((b) => b.addEventListener('click', preview));
     const watch = (el) => {
       ['input', 'change'].forEach((type) => el.addEventListener(type, (e) => { if (!e.target.matches('[data-char-search], [data-site-search]')) markDirty(); }));
       el.addEventListener('click', (e) => { if (e.target.closest('.ed-add, .ed-del')) markDirty(); });
@@ -342,5 +332,6 @@
     A.onLogout.push(() => { A.dirty = false; A.contentReady = false; });
   }
 
+  A.onPanel.content = renderBody;
   Object.assign(A, { loadContent, editorInit: init, markDirty, renderEditor: renderBody });
 })(window.FORMA = window.FORMA || {});
