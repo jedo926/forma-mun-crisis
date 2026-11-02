@@ -12,6 +12,7 @@
     // your deployed URL, e.g. 'https://your-project.vercel.app/api/release'.
     endpoint: '/api/release',
     adminEndpoint: '/api/admin',
+    committeeEndpoint: '/api/committee',
     requestTimeoutMs: 8000,
     lockedSlots: 12,          // number of "?" silhouettes before release (display only)
     refreshAfterReleaseMs: 5 * 60 * 1000,
@@ -31,7 +32,8 @@
     { id: 'locations', file: 'locations.html', num: '06', label: 'LOCATIONS', menu: 'LOCATIONS', pre: 'LOCKED' },
     { id: 'rules', file: 'rules.html', num: '07', label: 'RULES', menu: 'RULES & RESOURCES', pre: 'OPEN' },
     { id: 'intel', file: 'intel.html', num: '08', label: 'INTEL', menu: 'CLASSIFIED INTEL', pre: 'RESTRICTED' },
-    { id: 'chairs', file: 'chairs.html', num: '09', label: 'CHAIRS', menu: 'ABOUT THE CHAIRS', pre: 'OPEN' }
+    { id: 'chairs', file: 'chairs.html', num: '09', label: 'CHAIRS', menu: 'ABOUT THE CHAIRS', pre: 'OPEN' },
+    { id: 'committee', file: 'committee.html', num: '10', label: 'COMMITTEE', menu: 'PROCEEDINGS', pre: 'LIVE' }
   ];
   const DEFAULT_RELEASE_MS = Date.parse(CONFIG.releaseAt);
   const PAGE = document.body.dataset.page || 'home';

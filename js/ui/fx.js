@@ -31,6 +31,8 @@
   }
   function initReleaseFx() {
     on('forma:released', () => {
+      // Skip ceremony in admin preview — admin just wants to see the site
+      if (Release.link === 'demo' && new URLSearchParams(location.search).get('preview') === '1') return;
       const seen = session.get('releaseSeen', false);
       if (seen && Release.link !== 'demo') return;
       session.set('releaseSeen', true);

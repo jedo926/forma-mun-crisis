@@ -1,0 +1,275 @@
+/* FORMA MUN · Crisis Division — Committee proceedings page */
+
+/* ── Sections ───────────────────────────────────────────── */
+.comm-section {
+  margin-bottom: 48px;
+}
+.comm-heading {
+  font-family: var(--px);
+  font-size: 9px;
+  letter-spacing: .1em;
+  color: var(--cyan);
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 8px;
+  margin-bottom: 20px;
+}
+.comm-banner {
+  padding: 14px 18px;
+  border: 2px solid #ffd166;
+  color: #ffd166;
+  font-family: var(--px);
+  font-size: 8px;
+  line-height: 1.7;
+  margin-bottom: 28px;
+}
+
+/* ── Caucus Card ─────────────────────────────────────────── */
+.caucus-card {
+  border: 2px solid var(--line);
+  background: #0b0d1a;
+  padding: 24px;
+}
+.comm-empty {
+  font-family: var(--px);
+  font-size: 9px;
+  color: var(--muted);
+  text-align: center;
+  padding: 20px 0;
+}
+.caucus-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.caucus-type {
+  font-family: var(--px);
+  font-size: 9px;
+  letter-spacing: .08em;
+  color: var(--cyan);
+  background: rgba(0, 255, 255, .08);
+  border: 1px solid var(--cyan);
+  padding: 4px 10px;
+}
+.caucus-status {
+  font-family: var(--px);
+  font-size: 7px;
+  letter-spacing: .08em;
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+}
+.caucus-status.status-active  { color: #00ff88; }
+.caucus-status.status-paused  { color: #ffd166; }
+.caucus-status.status-ended   { color: var(--muted); }
+.caucus-status.status-idle    { color: var(--muted); }
+.caucus-topic {
+  font-family: var(--px);
+  font-size: 8px;
+  color: #cfe8ff;
+  margin-bottom: 22px;
+  line-height: 1.7;
+}
+.caucus-timers {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.timer-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.timer-label {
+  font-family: var(--px);
+  font-size: 7px;
+  letter-spacing: .08em;
+  color: var(--muted);
+}
+.timer-display {
+  font-family: var(--px);
+  font-size: 28px;
+  color: var(--cyan);
+  letter-spacing: .06em;
+  line-height: 1;
+}
+.timer-display.warn { color: #ffd166; }
+.timer-display.expired { color: var(--red); }
+.speaker-name {
+  font-family: var(--px);
+  font-size: 11px;
+  color: #00ff88;
+  letter-spacing: .04em;
+  margin-bottom: 2px;
+}
+
+/* ── Speakers Queue ──────────────────────────────────────── */
+.speakers-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.speaker-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  background: #0b0d1a;
+}
+.speaker-num {
+  font-family: var(--px);
+  font-size: 7px;
+  color: var(--muted);
+  min-width: 20px;
+}
+.speaker-item-name {
+  font-family: var(--px);
+  font-size: 8px;
+  color: #cfe8ff;
+  flex: 1;
+}
+.speaker-badge {
+  font-family: var(--px);
+  font-size: 7px;
+  padding: 2px 7px;
+  border: 1px solid currentColor;
+}
+.speaker-badge.speaking { color: #00ff88; }
+.speaker-badge.waiting  { color: var(--muted); }
+.speaker-badge.done     { color: var(--line); text-decoration: line-through; }
+
+/* ── Directives Forum ────────────────────────────────────── */
+.directive-form {
+  border: 2px solid var(--line);
+  background: #0b0d1a;
+  padding: 20px;
+  margin-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dir-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+.directive-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.dir-msg {
+  font-family: var(--px);
+  font-size: 8px;
+  min-height: 18px;
+  color: var(--cyan);
+}
+.dir-msg.bad  { color: var(--red); }
+.dir-msg.ok   { color: #00ff88; }
+.directives-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.directive-card {
+  border: 2px solid var(--line);
+  background: #0b0d1a;
+  padding: 16px 18px;
+  transition: border-color .15s;
+}
+.directive-card:hover { border-color: var(--cyan); }
+.directive-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.directive-delegation {
+  font-family: var(--px);
+  font-size: 9px;
+  color: var(--cyan);
+  letter-spacing: .05em;
+}
+.directive-time {
+  font-family: var(--px);
+  font-size: 7px;
+  color: var(--muted);
+}
+.directive-text {
+  font-size: 13px;
+  color: #cfe8ff;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.directive-empty {
+  font-family: var(--px);
+  font-size: 8px;
+  color: var(--muted);
+  text-align: center;
+  padding: 28px 0;
+}
+
+/* ── Admin committee tab styles ──────────────────────────── */
+.comm-ctrl-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.comm-state-bar {
+  font-family: var(--px);
+  font-size: 8px;
+  color: var(--cyan);
+  margin-bottom: 14px;
+  min-height: 18px;
+}
+.comm-speaker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: #0b0d1a;
+  margin-bottom: 8px;
+}
+.comm-speaker-name {
+  font-family: var(--px);
+  font-size: 8px;
+  color: #cfe8ff;
+  flex: 1;
+}
+.comm-dir-card {
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: #0b0d1a;
+}
+.comm-dir-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.comm-dir-delegation {
+  font-family: var(--px);
+  font-size: 8px;
+  color: var(--cyan);
+}
+.comm-dir-text {
+  font-size: 12px;
+  color: #cfe8ff;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.num-xs {
+  width: 60px;
+}

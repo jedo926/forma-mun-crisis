@@ -6,6 +6,9 @@
     },
     "api/admin.js": {
       "maxDuration": 5
+    },
+    "api/committee.js": {
+      "maxDuration": 5
     }
   },
   "headers": [

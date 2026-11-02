@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Committee · FORMA MUN Crisis Division</title>
+  <meta name="description" content="FORMA MUN Crisis Division — live committee proceedings, caucuses, and public directives.">
+  <meta name="theme-color" content="#070812">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/home.css">
+  <link rel="stylesheet" href="css/game.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/fx.css">
+  <link rel="stylesheet" href="css/committee.css">
+</head>
+<body data-page="committee">
+  <div data-slot="header"></div>
+  <noscript class="nav-fallback"><nav class="nav-plain" aria-label="Main"><a href="index.html">HOME</a> · <a href="committee.html">COMMITTEE</a></nav></noscript>
+
+  <main id="main" class="screen">
+    <header class="screen-head">
+      <div>
+        <p class="kicker">STAGE 10</p>
+        <h1 class="glitch">COMMITTEE</h1>
+        <p class="lead">Live proceedings — caucus status, speakers list, and public directives.</p>
+      </div>
+      <span class="lock-chip open">LIVE</span>
+    </header>
+
+    <!-- KV not configured banner (hidden by default, shown by JS if needed) -->
+    <div id="kv-banner" class="comm-banner" hidden>
+      ⚠ Committee features require Vercel KV storage. Ask the admin to connect a KV store in the Vercel dashboard under Project → Storage.
+    </div>
+
+    <!-- CAUCUS STATUS -->
+    <section class="comm-section">
+      <h2 class="comm-heading">CAUCUS STATUS</h2>
+      <div class="caucus-card">
+        <div id="caucus-empty" class="comm-empty">NO CAUCUS ACTIVE</div>
+        <div id="caucus-info" hidden>
+          <div class="caucus-row">
+            <span id="caucus-type" class="caucus-type"></span>
+            <span id="caucus-status-chip" class="caucus-status"></span>
+          </div>
+          <div id="caucus-topic" class="caucus-topic"></div>
+          <div class="caucus-timers">
+            <div class="timer-block">
+              <div class="timer-label">TOTAL TIME REMAINING</div>
+              <div id="caucus-countdown" class="timer-display">—</div>
+            </div>
+            <div id="speaker-timer-block" class="timer-block" hidden>
+              <div class="timer-label">CURRENT SPEAKER</div>
+              <div id="speaker-name" class="speaker-name">—</div>
+              <div id="speaker-countdown" class="timer-display">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SPEAKERS QUEUE (moderated, shown by JS) -->
+    <section id="queue-section" class="comm-section" hidden>
+      <h2 class="comm-heading">SPEAKERS QUEUE</h2>
+      <ul id="speakers-list" class="speakers-list"></ul>
+    </section>
+
+    <!-- PUBLIC DIRECTIVES FORUM -->
+    <section class="comm-section">
+      <h2 class="comm-heading">PUBLIC DIRECTIVES</h2>
+      <div class="directive-form">
+        <input id="dir-delegation" type="text" class="input" placeholder="DELEGATION NAME" maxlength="80" autocomplete="off">
+        <textarea id="dir-text" class="input dir-textarea" placeholder="Write your directive or statement here..." maxlength="2000"></textarea>
+        <div class="directive-form-footer">
+          <span id="dir-msg" class="dir-msg" aria-live="polite"></span>
+          <button id="dir-submit" type="button" class="btn mag">SUBMIT DIRECTIVE ▸</button>
+        </div>
+      </div>
+      <div id="directives-list" class="directives-list" aria-live="polite">
+        <div class="directive-empty">No directives yet. Be the first to submit one.</div>
+      </div>
+    </section>
+  </main>
+
+  <div data-slot="footer"></div>
+  <script src="js/core/config.js" defer></script>
+  <script src="js/core/util.js" defer></script>
+  <script src="js/ui/layout.js" defer></script>
+  <script src="js/core/audio.js" defer></script>
+  <script src="js/core/release.js" defer></script>
+  <script src="js/core/status.js" defer></script>
+  <script src="js/ui/modal.js" defer></script>
+  <script src="js/ui/fx.js" defer></script>
+  <script src="js/ui/chrome.js" defer></script>
+  <script src="js/pages/committee.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>

@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="css/game.css">
   <link rel="stylesheet" href="css/pages.css">
   <link rel="stylesheet" href="css/fx.css">
+  <link rel="stylesheet" href="css/committee.css">
   <link rel="stylesheet" href="css/admin.css">
 </head>
 <body data-page="admin">
@@ -60,19 +61,21 @@
         <section class="panel panel-neon">
           <h2>PREVIEW</h2>
           <p class="muted">See the site exactly as it will look after release. Only you see it, only while logged in.</p>
-          <button class="btn mag start" type="button" data-a="preview">▶ PREVIEW RELEASED SITE</button>
+          <button class="btn mag start" type="button" data-a="preview">▶ PREVIEW RELEASED SITE ↗</button>
         </section>
       </div>
-      <section class="panel admin-tool">
-        <h2>CONTENT ENCODER</h2>
-        <p class="muted">Paste or load the content JSON, validate it, then copy the encoded value into the Vercel variable <code>CRISIS_CONTENT_B64</code> and redeploy. Everything here runs in your browser.</p>
-        <div class="admin-actions"><button class="btn" type="button" data-a="load">LOAD CURRENT SERVER CONTENT</button><button class="btn mag" type="button" data-a="validate">VALIDATE + ENCODE</button></div>
-        <label class="sr-only" for="adm-json">Content JSON</label>
-        <textarea id="adm-json" class="code" data-a="json" spellcheck="false" placeholder='{ "title": "…", "characters": [ … ] }'></textarea>
-        <div class="warnings" data-a="report"></div>
-        <label class="sr-only" for="adm-b64">Encoded value</label>
-        <textarea id="adm-b64" class="code short" data-a="b64" readonly placeholder="Encoded value appears here"></textarea>
-        <div class="admin-bar"><span data-a="size"></span><button class="btn" type="button" data-a="copy">COPY ENCODED VALUE</button></div>
+      <section class="panel admin-tool" data-admin-editor>
+        <h2>CONTENT EDITOR</h2>
+        <p class="muted">Edit your committee content here — no JSON required. <strong>Step 1:</strong> Click <strong>LOAD FROM SERVER</strong> to get the current content. <strong>Step 2:</strong> Use the tabs (GENERAL → title &amp; briefing, CHARACTERS, FACTIONS, TIMELINE, LOCATIONS, INTEL, UPDATES) to edit each section. <strong>Step 3:</strong> Click <strong>PUBLISH CHANGES ▸</strong> when done.</p>
+        <div class="editor-tabs" data-editor-tabs></div>
+        <div class="editor-body" data-editor-body></div>
+        <div class="admin-bar editor-footer">
+          <span class="admin-msg" data-editor-status></span>
+          <div class="admin-actions">
+            <button class="btn" type="button" data-editor-load>LOAD FROM SERVER</button>
+            <button class="btn mag" type="button" data-editor-publish>PUBLISH CHANGES ▸</button>
+          </div>
+        </div>
       </section>
     </section>
   </main>

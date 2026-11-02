@@ -2,6 +2,8 @@
  * Shared server-side helpers for the release and admin endpoints.
  * Files in api/ starting with "_" are not deployed as functions by Vercel.
  */
+const { kvAvailable, kvGet, kvSet } = require('./kv');
+
 const DEFAULT_RELEASE_AT = '2027-01-07T22:00:00+03:00'; // 22:00 Riyadh
 
 function send(res, statusCode, body, extraHeaders) {
@@ -72,4 +74,30 @@ function validate(c) {
   };
 }
 
-module.exports = { DEFAULT_RELEASE_AT, send, releaseTime, readContent, validate };
+/** Async read — checks KV first so published content is live without redeployment. */
+async function readContentFull() {
+  if (kvAvailable()) {
+    try {
+      const b64 = await kvGet('crisis:content');
+      if (b64 && typeof b64 === 'string') {
+        const raw = Buffer.from(b64, 'base64').toString('utf8');
+        if (raw && raw.trim()) {
+          const content = JSON.parse(raw);
+          if (content && typeof content === 'object' && !Array.isArray(content)) {
+            return { ok: true, content, bytes: Buffer.byteLength(raw, 'utf8'), source: 'kv' };
+          }
+        }
+      }
+    } catch (e) { /* fall through to env var */ }
+  }
+  return readContent();
+}
+
+/** Save base64-encoded content to KV so it's instantly live. Returns true if saved. */
+async function saveContentToKV(b64) {
+  if (!kvAvailable()) return false;
+  await kvSet('crisis:content', b64);
+  return true;
+}
+
+module.exports = { DEFAULT_RELEASE_AT, send, releaseTime, readContent, readContentFull, saveContentToKV, validate };

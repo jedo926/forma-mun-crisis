@@ -11,7 +11,8 @@
  * GET  /api/admin?action=content (Authorization: Bearer <token>) → full content (pre-release preview)
  */
 const crypto = require('crypto');
-const { send, releaseTime, readContent, validate } = require('./_lib/content');
+const { send, releaseTime, readContentFull, saveContentToKV, validate } = require('./_lib/content');
+const { kvAvailable } = require('./_lib/kv');
 
 const SESSION_MS = 8 * 60 * 60 * 1000;      // 8 hours
 const MAX_FAILS = 5, WINDOW_MS = 15 * 60 * 1000;
@@ -88,10 +89,57 @@ async function handler(req, res) {
   const auth = req.headers.authorization || '';
   const session = verify(auth.startsWith('Bearer ') ? auth.slice(7) : '');
   if (!session) return send(res, 401, { status: 'error', code: 'unauthorized' }, NO_INDEX);
+
+  if (action === 'publish') {
+    if (req.method !== 'POST') return send(res, 405, { status: 'error', code: 'method_not_allowed' }, NO_INDEX);
+    const body = await readBody(req);
+    const { b64 } = body;
+    if (!b64 || typeof b64 !== 'string' || b64.length > 128 * 1024) {
+      return send(res, 400, { status: 'error', code: 'missing_b64' }, NO_INDEX);
+    }
+    // KV path: instant update, no redeploy needed.
+    const kvSaved = await saveContentToKV(b64);
+    if (kvSaved) {
+      return send(res, 200, { ok: true, deployed: true, instant: true }, NO_INDEX);
+    }
+
+    // Fallback: update env var + trigger deploy hook (requires manual setup).
+    const vercelToken = process.env.VERCEL_API_TOKEN;
+    const projectId   = process.env.VERCEL_PROJECT_ID;
+    const deployHook  = process.env.VERCEL_DEPLOY_HOOK;
+    if (vercelToken && projectId) {
+      try {
+        const listRes = await fetch(
+          `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}/env?limit=100`,
+          { headers: { Authorization: `Bearer ${vercelToken}` } }
+        );
+        const listData = await listRes.json();
+        const envVar = (listData.envs || []).find(e => e.key === 'CRISIS_CONTENT_B64');
+        if (envVar && envVar.id) {
+          await fetch(
+            `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}/env/${envVar.id}`,
+            { method: 'PATCH', headers: { Authorization: `Bearer ${vercelToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ value: b64 }) }
+          );
+        } else {
+          await fetch(
+            `https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}/env`,
+            { method: 'POST', headers: { Authorization: `Bearer ${vercelToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'CRISIS_CONTENT_B64', value: b64, type: 'encrypted', target: ['production'] }) }
+          );
+        }
+        let deployed = false;
+        if (deployHook) { await fetch(deployHook, { method: 'POST' }); deployed = true; }
+        return send(res, 200, { ok: true, deployed }, NO_INDEX);
+      } catch (err) {
+        return send(res, 500, { ok: false, code: 'vercel_api_error' }, NO_INDEX);
+      }
+    }
+    return send(res, 200, { ok: true, deployed: false }, NO_INDEX);
+  }
+
   if (req.method !== 'GET') return send(res, 405, { status: 'error', code: 'method_not_allowed' }, NO_INDEX);
 
   const releaseMs = releaseTime();
-  const content = readContent();
+  const content = await readContentFull();
   if (action === 'status') {
     const health = content.ok ? validate(content.content) : null;
     return send(res, 200, {
@@ -99,6 +147,7 @@ async function handler(req, res) {
       releaseAt: releaseMs === null ? null : new Date(releaseMs).toISOString(),
       released: releaseMs !== null && Date.now() >= releaseMs,
       releaseConfigOk: releaseMs !== null,
+      kvReady: kvAvailable(),
       content: { configured: content.ok || content.code !== 'not_configured', valid: content.ok, code: content.ok ? null : content.code, bytes: content.bytes || 0, ...(health || {}) },
       sessionExpiresAt: new Date(session.exp).toISOString()
     }, NO_INDEX);

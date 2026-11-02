@@ -3,3 +3,6 @@ README.md
 ASSET_CREDITS.md
 docs/
 .gitignore
+test/
+test-results/
+playwright.config.js

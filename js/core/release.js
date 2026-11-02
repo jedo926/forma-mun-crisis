@@ -77,7 +77,17 @@
     // The token is checked by the server (/api/admin); nothing is readable without it.
     async startPreview() {
       this.link = 'demo';
-      const token = session.get('adminToken', null);
+      let token = session.get('adminToken', null);
+      // When preview is opened in a new tab the token is passed via URL hash (#at=<token>).
+      // Extract it, store in sessionStorage, then clear the hash from the URL.
+      if (!token) {
+        const m = location.hash.match(/(?:^|[&#])at=([^&#]+)/);
+        if (m) {
+          token = decodeURIComponent(m[1]);
+          session.set('adminToken', token);
+          history.replaceState(null, '', location.pathname + location.search);
+        }
+      }
       const banner = h('div', { class: 'demo-banner admin-banner', role: 'note' }, 'ADMIN PREVIEW · ONLY VISIBLE TO LOGGED-IN ADMINS · ', h('a', { href: 'admin.html', text: 'BACK TO ADMIN' }));
       document.body.prepend(banner);
       this.keepParam('preview=1');

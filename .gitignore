@@ -14,3 +14,7 @@ Thumbs.db
 .vscode/
 .idea/
 node_modules/
+test-results/
+
+.vercel
+.env*

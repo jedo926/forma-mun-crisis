@@ -10,11 +10,11 @@
  *   CRISIS_CONTENT_B64  The approved content JSON, base64-encoded (recommended), or
  *   CRISIS_CONTENT      the approved content JSON as a raw string.
  */
-const { send, releaseTime, readContent } = require('./_lib/content');
+const { send, releaseTime, readContentFull } = require('./_lib/content');
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS' };
 
-function handler(req, res) {
+async function handler(req, res) {
   const now = Date.now();
   const serverTime = new Date(now).toISOString();
 
@@ -29,7 +29,7 @@ function handler(req, res) {
 
   if (now < releaseMs) return send(res, 200, { status: 'locked', releaseAt, serverTime }, CORS);
 
-  const result = readContent();
+  const result = await readContentFull();
   if (!result.ok) return send(res, 503, { status: 'pending', code: result.code, releaseAt, serverTime }, CORS);
   return send(res, 200, { status: 'released', releaseAt, serverTime, content: result.content }, CORS);
 }
