@@ -239,6 +239,17 @@ test.describe('Admin — content editor', () => {
     await expect(page.locator('[data-committee-body]')).toContainText(/CAUCUS|KV/);
   });
 
+  test('every form field has an id or a name', async ({ page }) => {
+    await openTab(page, 'characters');
+    await page.locator('.ed-fold summary').first().click();
+    for (const panel of ['content', 'updates', 'committee', 'report']) {
+      await openPanel(page, panel);
+      await page.waitForTimeout(500);
+      const unnamed = await page.locator('input, textarea, select').evaluateAll((els) => els.filter((e) => !e.id && !e.name).length);
+      expect(unnamed, panel).toBe(0);
+    }
+  });
+
   test('PAGE TEXT section lists every page with editable text', async ({ page }) => {
     await adminLogin(page);
     await openPanel(page, 'site');
@@ -414,6 +425,29 @@ test.describe('Admin — saving and publishing', () => {
     await page.locator('[data-a="restore"]').click();
     await openPanel(page, 'content');
     await expect(page.locator('[data-editor-status]')).toContainText('SAME AS PUBLISHED');
+  });
+});
+
+test.describe('Admin — chair report', () => {
+  test.skip(!ADMIN_PASS || !ALLOW_WRITES, 'writes data: local server only (npm run test:local)');
+
+  test('upload, stay locked for visitors, then remove', async ({ page, request }) => {
+    await page.addInitScript(() => { window.confirm = () => true; });
+    await adminLogin(page);
+    await openPanel(page, 'report');
+    const body = Buffer.concat([Buffer.from('%PDF-1.7 '), Buffer.alloc(700000, 65)]);
+    await page.locator('#report-file').setInputFiles({ name: 'report.pdf', mimeType: 'application/pdf', buffer: body });
+    await expect(page.locator('[data-report-state]')).toContainText('ON THE SITE', { timeout: 15_000 });
+    expect((await request.get('/api/report')).status()).toBe(404);
+    await page.locator('[data-report-remove]').click();
+    await expect(page.locator('[data-report-state]')).toHaveCount(0);
+  });
+
+  test('a file that is not a PDF is refused', async ({ page }) => {
+    await adminLogin(page);
+    await openPanel(page, 'report');
+    await page.locator('#report-file').setInputFiles({ name: 'notes.pdf', mimeType: 'application/pdf', buffer: Buffer.from('not a pdf') });
+    await expect(page.locator('[data-report-msg]')).toHaveText('THAT FILE IS NOT A PDF');
   });
 });
 

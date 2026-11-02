@@ -64,6 +64,7 @@
           <span class="side-label">MORE</span>
           <button type="button" class="side-more" data-panel="content">ALL FIELDS</button>
           <button type="button" class="side-more" data-panel="site">PAGE TEXT LIST</button>
+          <button type="button" class="side-more" data-panel="report">CHAIR REPORT</button>
           <div class="side-foot">
             <span class="side-session" data-a="session">SESSION</span>
             <button type="button" class="side-small" data-a="refresh">REFRESH</button>
@@ -130,6 +131,11 @@
             <div class="panel" data-site-body></div>
           </section>
 
+          <section data-panel-id="report" hidden>
+            <h2 class="panel-title">CHAIR REPORT</h2>
+            <div class="panel" data-report-body></div>
+          </section>
+
           <section data-panel-id="committee" hidden>
             <h2 class="panel-title">COMMITTEE</h2>
             <p class="muted">Runs live. Changes here save as you go and need no publishing.</p>
@@ -171,6 +177,7 @@
   <script src="js/admin/updates.js" defer></script>
   <script src="js/admin/site.js" defer></script>
   <script src="js/admin/committee.js" defer></script>
+  <script src="js/admin/report.js" defer></script>
   <script src="js/admin/admin.js" defer></script>
   <script src="js/main.js" defer></script>
 </body>

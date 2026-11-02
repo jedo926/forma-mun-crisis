@@ -18,7 +18,7 @@
       box.innerHTML = '';
       if (!res.length) { box.append(h('p', { class: 'muted', text: 'No approved documents have been published yet.' })); return; }
       box.append(h('ul', null, res.map((r) => h('li', null,
-        h('a', { href: safeUrl(r.url), target: /^https?:/i.test(r.url) ? '_blank' : null, rel: 'noopener', text: str(r.title, 160) }),
+        h('a', { href: safeUrl(r.url), target: (r.report || /^https?:/i.test(r.url)) ? '_blank' : null, rel: 'noopener', text: str(r.title, 160) }),
         str(r.type) ? ' · ' + str(r.type, 30).toUpperCase() : '', str(r.note) ? h('span', { class: 'muted', text: ' — ' + str(r.note, 300) }) : null))));
     });
   }

@@ -42,7 +42,7 @@
     if (!body) return;
     body.innerHTML = '';
     if (!pages) { body.append(hint('Loading the pages…')); return; }
-    const search = h('input', { class: 'input', type: 'search', placeholder: 'Search page text…', 'aria-label': 'Search page text', dataset: { siteSearch: '' } });
+    const search = h('input', { id: 'site-search', name: 'site-search', autocomplete: 'off', class: 'input', type: 'search', placeholder: 'Search page text…', 'aria-label': 'Search page text', dataset: { siteSearch: '' } });
     search.value = filter;
     const list = h('div', { class: 'ed-list' });
     const paint = () => {

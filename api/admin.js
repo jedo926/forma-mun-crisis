@@ -17,11 +17,14 @@
  * GET  ?action=updates
  * POST ?action=post-update             { id?, title, detail, priority, time? }
  * POST ?action=delete-update           { id }
+ * POST ?action=report-piece            { id, index, total, bytes, data }   one piece of the PDF
+ * POST ?action=delete-report
  */
 const crypto = require('crypto');
 const {
   KEYS, send, encode, decodeDoc, releaseTime, readPublished, readContentFull, readPostedUpdates, mergeUpdates,
-  migrateDocUpdates, readDraft, sanitizeSite, readSite, publicLeaks, saveContentToKV, validate
+  migrateDocUpdates, readDraft, sanitizeSite, readSite, publicLeaks, saveContentToKV, validate, withExtras,
+  reportPiece, readReportMeta, deleteReportPieces
 } = require('./_lib/content');
 const { kvAvailable, kvGet, kvSet, kvDel, kvHset, kvHdel } = require('./_lib/kv');
 const { readBody } = require('./_lib/auth');
@@ -59,6 +62,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const NO_INDEX = { 'X-Robots-Tag': 'noindex, nofollow' };
 const MAX_B64 = 128 * 1024;
 const MAX_BODY = 400 * 1024;
+const MAX_PIECE = 320 * 1024;
+const MAX_PIECES = 40;
 const PRIORITIES = ['critical', 'high', 'medium', 'low'];
 
 async function handler(req, res) {
@@ -102,7 +107,7 @@ async function handler(req, res) {
   const asText = (v) => (typeof v === 'string' ? v : JSON.stringify(v));
 
   if (req.method === 'POST') {
-    if (!['save-draft', 'discard-draft', 'publish', 'restore', 'post-update', 'delete-update'].includes(action)) return fail('unknown_action');
+    if (!['save-draft', 'discard-draft', 'publish', 'restore', 'post-update', 'delete-update', 'report-piece', 'delete-report'].includes(action)) return fail('unknown_action');
     const body = await readBody(req, MAX_BODY);
     const b64 = body.b64;
     if ((action === 'save-draft' || action === 'publish') && (!b64 || typeof b64 !== 'string' || b64.length > MAX_B64)) return fail('missing_b64');
@@ -171,6 +176,28 @@ async function handler(req, res) {
       return send(res, 200, { ok: true, update, held: !released }, NO_INDEX);
     }
 
+    if (action === 'report-piece') {
+      const { id, data } = body;
+      const index = Number(body.index), total = Number(body.total);
+      if (!/^r[a-z0-9]{4,30}$/.test(id || '') || !Number.isInteger(index) || !Number.isInteger(total) || total < 1 || total > MAX_PIECES || index < 0 || index >= total) return fail('bad_piece');
+      if (typeof data !== 'string' || !data || data.length > MAX_PIECE) return fail('bad_piece');
+      if (index === 0 && !data.startsWith('JVBERi0')) return fail('not_a_pdf');   // base64 of "%PDF-"
+      await kvSet(reportPiece(id, index), data);
+      if (index === total - 1) {
+        const old = await readReportMeta();
+        await kvSet(KEYS.report, JSON.stringify({ id, total, bytes: Number(body.bytes) || 0, uploadedAt: new Date().toISOString() }));
+        if (old && old.id !== id) await deleteReportPieces(old);
+      }
+      return send(res, 200, { ok: true }, NO_INDEX);
+    }
+
+    if (action === 'delete-report') {
+      const old = await readReportMeta();
+      await kvDel(KEYS.report);
+      if (old) await deleteReportPieces(old);
+      return send(res, 200, { ok: true }, NO_INDEX);
+    }
+
     // delete-update
     if (typeof body.id !== 'string' || !body.id) return fail('missing_id');
     await migrateDocUpdates();
@@ -194,6 +221,7 @@ async function handler(req, res) {
       kvReady: kvAvailable(),
       delegateCode: process.env.DELEGATE_CODE || null,
       draft: draft ? { savedAt: draft.savedAt } : null,
+      report: await readReportMeta(),
       canRestore,
       content: { configured: content.ok || content.code !== 'not_configured', valid: content.ok, code: content.ok ? null : content.code, bytes: content.bytes || 0, ...(health || {}) },
       sessionExpiresAt: new Date(session.exp).toISOString()
@@ -208,7 +236,7 @@ async function handler(req, res) {
       let content = doc;
       if (!raw) {
         const cur = await readPublished();  // updates come from the live store, not from the draft's copy
-        content = Object.assign({}, doc, { updates: mergeUpdates(cur.ok ? cur.content.updates : [], await readPostedUpdates()) });
+        content = await withExtras(doc, cur.ok ? cur.content.updates : []);
       }
       return send(res, 200, { status: 'ok', content, site: draft.site || {}, fromDraft: true, savedAt: draft.savedAt }, NO_INDEX);
     }

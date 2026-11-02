@@ -5,7 +5,7 @@
   'use strict';
   const { $, h, arr, toast, Sound } = F;
   const A = F.Admin;
-  const { lbl, erow, efull, ecard, hint, esect, dbtn, abtn, tf, ta, dd, cpick, checkbox, paras, setOrClear, fold } = A.ui;
+  const { fieldAttrs, lbl, erow, efull, ecard, hint, esect, dbtn, abtn, tf, ta, dd, cpick, checkbox, paras, setOrClear, fold } = A.ui;
 
   const LIMIT = 128 * 1024; // base64 size the server accepts
   const TABS = [['general', 'GENERAL'], ['characters', 'CHARACTERS'], ['factions', 'FACTIONS'], ['timeline', 'TIMELINE'], ['locations', 'LOCATIONS'], ['intel', 'INTEL'], ['resources', 'RESOURCES']];
@@ -119,7 +119,7 @@
   function renderCharacters(body) {
     const c = C();
     c.characters = c.characters || [];
-    const search = h('input', { class: 'input', type: 'search', placeholder: 'Search characters by name, role or faction…', 'aria-label': 'Search characters', dataset: { charSearch: '' } });
+    const search = h('input', { id: 'char-search', name: 'char-search', autocomplete: 'off', class: 'input', type: 'search', placeholder: 'Search characters by name, role or faction…', 'aria-label': 'Search characters', dataset: { charSearch: '' } });
     search.value = charFilter;
     const list = h('div', { class: 'ed-list' });
     const paint = () => {
@@ -169,7 +169,7 @@
 
   // ---- locations ----
   function coord(l, key) {
-    const el = h('input', { class: 'input num-sm', type: 'number', min: '0', max: '100', step: '1', placeholder: '0–100' });
+    const el = h('input', Object.assign(fieldAttrs(), { class: 'input num-sm', type: 'number', min: '0', max: '100', step: '1', placeholder: '0–100' }));
     el.value = l[key] != null ? String(l[key]) : '50';
     el.addEventListener('input', () => { l[key] = Number(el.value); });
     return el;

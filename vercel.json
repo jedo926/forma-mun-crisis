@@ -12,6 +12,9 @@
     },
     "api/site.js": {
       "maxDuration": 5
+    },
+    "api/report.js": {
+      "maxDuration": 10
     }
   },
   "headers": [
