@@ -25,6 +25,7 @@
   const speakersList   = $('#speakers-list');
   const directivesList = $('#directives-list');
   const dirDelegation  = $('#dir-delegation');
+  const dirCode        = $('#dir-code');
   const dirText        = $('#dir-text');
   const dirMsg         = $('#dir-msg');
   const dirSubmit      = $('#dir-submit');
@@ -63,6 +64,7 @@
   function renderState() {
     if (!state) return;
     if (kvBanner) kvBanner.hidden = !!state.kvReady;
+    if (dirCode) dirCode.hidden = !state.codeRequired;
     renderCaucus();
     renderDirectives();
   }
@@ -169,8 +171,10 @@
   dirSubmit.addEventListener('click', async () => {
     const delegation = (dirDelegation.value || '').trim();
     const text = (dirText.value || '').trim();
+    const code = (dirCode.value || '').trim();
     if (!delegation) { showMsg('ENTER YOUR DELEGATION NAME', 'bad'); return; }
     if (!text) { showMsg('WRITE YOUR DIRECTIVE FIRST', 'bad'); return; }
+    if (state && state.codeRequired && !code) { showMsg('ENTER THE DELEGATE CODE', 'bad'); return; }
 
     dirSubmit.disabled = true;
     showMsg('SUBMITTING…', '');
@@ -179,17 +183,17 @@
       const res = await fetch(endpoint + '?action=directive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ delegation, text })
+        body: JSON.stringify({ delegation, text, code })
       });
       const data = await res.json().catch(() => null);
       if (res.ok && data && data.ok) {
-        dirDelegation.value = '';
-        dirText.value = '';
+        dirText.value = '';          // keep delegation + code: delegates post several times
         showMsg('✓ DIRECTIVE SUBMITTED', 'ok');
         await fetchState();
       } else {
-        const code = data && data.code;
-        showMsg(code === 'kv_required' ? 'STORAGE NOT CONFIGURED YET' : 'SUBMISSION FAILED · TRY AGAIN', 'bad');
+        const err = data && data.code;
+        showMsg(err === 'bad_code' ? 'WRONG DELEGATE CODE · ASK YOUR CHAIRS'
+          : err === 'kv_required' ? 'STORAGE NOT CONFIGURED YET' : 'SUBMISSION FAILED · TRY AGAIN', 'bad');
       }
     } catch (e) {
       showMsg('NO CONNECTION TO SERVER', 'bad');
@@ -207,9 +211,19 @@
   }
 
   // ── Init ──────────────────────────────────────────────────
+  // Every poll costs KV commands, so hidden tabs stop and quiet periods slow down.
+  function schedulePoll() {
+    const c = state && state.caucus;
+    const live = c && (c.status === 'active' || c.status === 'paused');
+    setTimeout(async () => {
+      if (!document.hidden) await fetchState();
+      schedulePoll();
+    }, live ? 5000 : 15000);
+  }
+
   function initCommittee() {
-    fetchState();
-    setInterval(fetchState, 5000);   // poll for updates
+    fetchState().then(schedulePoll);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) fetchState(); });
     setInterval(tickTimers, 1000);   // smooth countdown tick
   }
 

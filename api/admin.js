@@ -148,6 +148,7 @@ async function handler(req, res) {
       released: releaseMs !== null && Date.now() >= releaseMs,
       releaseConfigOk: releaseMs !== null,
       kvReady: kvAvailable(),
+      delegateCode: process.env.DELEGATE_CODE || null,
       content: { configured: content.ok || content.code !== 'not_configured', valid: content.ok, code: content.ok ? null : content.code, bytes: content.bytes || 0, ...(health || {}) },
       sessionExpiresAt: new Date(session.exp).toISOString()
     }, NO_INDEX);

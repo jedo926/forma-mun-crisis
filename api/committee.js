@@ -6,7 +6,8 @@
  *
  * Public (no auth):
  *   GET  /api/committee                       → caucus state + directives
- *   POST /api/committee?action=directive      body { delegation, text }
+ *   POST /api/committee?action=directive      body { delegation, text, code }
+ *        code must match DELEGATE_CODE when that env var is set
  *
  * Admin only (Authorization: Bearer <admin token>):
  *   POST /api/committee?action=caucus         body { type, topic, totalMin, totalSec, perSpeakerMin, perSpeakerSec }
@@ -16,7 +17,7 @@
  */
 const { send } = require('./_lib/content');
 const { kvAvailable, kvGet, kvSet, kvHset, kvHdel, kvHvals } = require('./_lib/kv');
-const { adminFromReq, readBody } = require('./_lib/auth');
+const { adminFromReq, readBody, safeEqual } = require('./_lib/auth');
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
 const NO_IDX = { 'X-Robots-Tag': 'noindex, nofollow' };
@@ -73,13 +74,17 @@ async function handler(req, res) {
   // ── Public GET ────────────────────────────────────────────
   if (req.method === 'GET' && !action) {
     const [caucus, directives] = await Promise.all([getCaucus(), getDirectives()]);
-    return send(res, 200, { ok: true, caucus, directives, serverTime, kvReady: kvAvailable() }, CORS);
+    return send(res, 200, { ok: true, caucus, directives, serverTime, kvReady: kvAvailable(), codeRequired: !!process.env.DELEGATE_CODE }, CORS);
   }
 
   // ── Public: submit directive ──────────────────────────────
   if (req.method === 'POST' && action === 'directive') {
     if (!kvAvailable()) return send(res, 503, { ok: false, code: 'kv_required' }, CORS);
     const body = await readBody(req);
+    const required = process.env.DELEGATE_CODE;
+    if (required && !safeEqual(String(body.code || '').trim().toUpperCase(), required.trim().toUpperCase())) {
+      return send(res, 403, { ok: false, code: 'bad_code' }, CORS);
+    }
     const delegation = String(body.delegation || '').trim().slice(0, 80);
     const text = String(body.text || '').trim().slice(0, 2000);
     if (!delegation || !text) return send(res, 400, { ok: false, code: 'missing_fields' }, CORS);

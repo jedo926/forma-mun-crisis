@@ -74,3 +74,10 @@ Run on 25 Oct 2026 with Node 22 and headless Chromium (Playwright), against a lo
 - **Real iPad/iPhone Safari:** the iPad tests used Chrome's iPad emulation, because Safari's engine (WebKit) couldn't be downloaded here. The code includes Safari-specific handling (prefixed fullscreen, audio unlock on tap, `100dvh`, touch-gesture locking), but test once on a real iPad.
 - Git history: this folder is delivered without a `.git` directory, so start a clean repo.
 - Screen reader passes (semantic markup, labels and focus handling are in place, but no live NVDA/VoiceOver run).
+
+## Committee, publishing and security pass (2 Nov 2026)
+
+- **Unit:** 38/38 passed (`npm run test:unit`).
+- **Browser, local server with an in-memory KV:** 45/45 passed. This covers publishing, Unicode, the failed-load publish guard, the full caucus lifecycle, the delegate code, 20 simultaneous directives, a KV read failure, a wrong device clock and the unpublished-changes warnings.
+- **Release moment:** a page open before the deadline stayed locked with no content in the response, then flipped by itself and played the reveal.
+- **Live site:** the read-only Playwright suite passed, and published content matched the private master exactly.

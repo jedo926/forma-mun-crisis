@@ -19,7 +19,7 @@
 </head>
 <body data-page="committee">
   <div data-slot="header"></div>
-  <noscript class="nav-fallback"><nav class="nav-plain" aria-label="Main"><a href="index.html">HOME</a> · <a href="committee.html">COMMITTEE</a></nav></noscript>
+  <noscript class="nav-fallback"><nav class="nav-plain" aria-label="Main"><a href="index.html">HOME</a> · <a href="briefing.html">BRIEFING</a> · <a href="characters.html">CHARACTERS</a> · <a href="factions.html">FACTIONS</a> · <a href="timeline.html">TIMELINE</a> · <a href="updates.html">UPDATES</a> · <a href="locations.html">LOCATIONS</a> · <a href="rules.html">RULES</a> · <a href="intel.html">INTEL</a> · <a href="chairs.html">CHAIRS</a> · <a href="committee.html">COMMITTEE</a></nav></noscript>
 
   <main id="main" class="screen">
     <header class="screen-head">
@@ -72,8 +72,9 @@
     <section class="comm-section">
       <h2 class="comm-heading">PUBLIC DIRECTIVES</h2>
       <div class="directive-form">
-        <input id="dir-delegation" type="text" class="input" placeholder="DELEGATION NAME" maxlength="80" autocomplete="off">
-        <textarea id="dir-text" class="input dir-textarea" placeholder="Write your directive or statement here..." maxlength="2000"></textarea>
+        <input id="dir-delegation" type="text" class="input" placeholder="DELEGATION NAME" aria-label="Delegation name" maxlength="80" autocomplete="off">
+        <input id="dir-code" type="text" class="input" placeholder="DELEGATE CODE" aria-label="Delegate code from your chairs" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <textarea id="dir-text" class="input dir-textarea" placeholder="Write your directive or statement here..." aria-label="Directive text" maxlength="2000"></textarea>
         <div class="directive-form-footer">
           <span id="dir-msg" class="dir-msg" aria-live="polite"></span>
           <button id="dir-submit" type="button" class="btn mag">SUBMIT DIRECTIVE ▸</button>

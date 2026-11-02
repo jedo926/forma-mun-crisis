@@ -14,7 +14,8 @@
 .nav a { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 9px; font-family: var(--px); font-size: 9px;
   color: var(--text); text-decoration: none; border: 2px solid transparent; position: relative; }
 .nav a .num { color: var(--violet); font-size: 7px; }
-@media (max-width: 1560px) { .nav a .num { display: none; } .nav a { padding: 0 8px; font-size: 8px; } }
+@media (max-width: 1560px) { .nav a .num { display: none; } .nav a { padding: 0 6px; font-size: 8px; } }
+@media (max-width: 1360px) { .nav a { padding: 0 3px; font-size: 7px; } }
 .nav a:hover, .nav a:focus-visible { color: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,245,255,.5); outline: none; }
 .nav a[aria-current="page"] { color: var(--bg); background: var(--cyan); border-color: var(--cyan); }
 .nav a[aria-current="page"] .num { color: var(--bg); }
@@ -47,7 +48,7 @@
 .dot.ok { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
 .dot.warn { background: #ffb020; }
 .dot.bad { background: var(--red); animation: blink 1s steps(1) infinite; }
-.dot.rel { background: var(--magenta); box-shadow: 0 0 8px var(--magenta); }
+.dot.rel { display: inline-block; background: var(--magenta); box-shadow: 0 0 8px var(--magenta); }
 
 /* ---------- Modal ---------- */
 .modal { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(3,3,10,.82); }

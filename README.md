@@ -1,6 +1,6 @@
 # FORMA MUN · Crisis Division
 
-A 16-bit arcade, cyberpunk crisis-committee website. It is plain HTML, CSS and vanilla JavaScript, with no framework and no build step. It deploys as a static site on Vercel plus one tiny serverless function that releases the secret scenario at the right moment.
+A 16-bit arcade, cyberpunk crisis-committee website. It is plain HTML, CSS and vanilla JavaScript, with no framework and no build step. It deploys as a static site on Vercel plus three small serverless functions: one releases the secret scenario at the right moment, one runs the admin panel, and one runs live committee proceedings. Published content and committee data live in a Vercel KV store.
 
 **Release time:** 7 January 2027, 22:00 Riyadh (`2027-01-07T22:00:00+03:00`).
 
@@ -11,7 +11,7 @@ A 16-bit arcade, cyberpunk crisis-committee website. It is plain HTML, CSS and v
 The site is split into small modules. Each file does one job, so you can change one part without touching the rest.
 
 ```
-index.html … chairs.html, admin.html   One file per page. Each page holds only its own <main> content.
+index.html … committee.html, admin.html   One file per page. Each page holds only its own <main> content.
 
 css/
   base.css      Fonts, colour tokens, reset, CRT effect, buttons, panels, countdown
@@ -21,6 +21,7 @@ css/
   pages.css     Briefing, characters, factions, timeline, updates, locations, rules, intel, chairs
   fx.css        Release overlay, topic cutscene, reduced-effects rules (loaded last)
   admin.css     Admin control room
+  committee.css Committee page + the admin Committee tab
 
 js/
   core/config.js    Settings + SITE MAP (nav, menu, page list). Edit pages/nav here.
@@ -41,11 +42,15 @@ js/
 
 api/
   release.js      Public release endpoint (checks the server clock)
-  admin.js        Admin login + status + pre-release preview (password checked here)
+  admin.js        Admin login + status + pre-release preview + publish (password checked here)
+  committee.js    Caucus state, speakers list and public directives
   _lib/content.js Shared helpers + content health check (not deployed as a function)
+  _lib/auth.js    Session signing shared by the admin and committee endpoints
+  _lib/kv.js      Vercel KV (Upstash REST) helper
 
 assets/  images, fonts, audio (music + sound effects), demo placeholder data
 docs/    Content schema example + test results (not deployed)
+test/    Unit and browser tests (not deployed)
 ```
 
 The scripts are plain files that share one `window.FORMA` namespace. There are no ES modules or build step, so the site still works when you double-click `index.html`. Every page lists the modules it needs at the bottom of its HTML, in load order.
@@ -55,7 +60,7 @@ The scripts are plain files that share one `window.FORMA` namespace. There are n
 ## How the secret stays secret
 
 - **The repository contains zero crisis material.** No title, roster, factions or anything else is in HTML, CSS, JS, images or filenames.
-- **The scenario lives in a Vercel environment variable** (`CRISIS_CONTENT_B64`). Only `api/release.js` reads it.
+- **The scenario lives on the server:** in Vercel KV once anything has been published from the admin panel, otherwise in the `CRISIS_CONTENT_B64` environment variable. KV wins when both exist.
 - **The server decides.** `/api/release` compares the **server's** clock with `RELEASE_AT`:
   - Before release, it returns only `{"status":"locked","releaseAt":…,"serverTime":…}`.
   - After release, it returns `{"status":"released", …, "content": { … }}`.
@@ -72,7 +77,7 @@ The status bar will say **FILE MODE**. A `file://` copy cannot reach the release
 
 To preview what the released site looks like with **placeholder data**, add `?demo=1` to the address, e.g. `index.html?demo=1`. A yellow DEMO banner appears and all content is obviously fake. This is safe to keep public.
 
-> To test the real endpoint from a local file, set `CONFIG.endpoint` at the top of `script.js` to your deployed URL, e.g. `https://your-project.vercel.app/api/release`.
+> To test the real endpoint from a local file, set `CONFIG.endpoint` in `js/core/config.js` to your deployed URL, e.g. `https://your-project.vercel.app/api/release`.
 
 ## Admin control room (`/admin.html`)
 
@@ -80,7 +85,8 @@ The admin panel is not linked in the nav. Open `https://<your-site>/admin.html` 
 
 - **What it shows:** live release state and countdown, server time, whether the content variable is set and valid, a count of characters, factions and so on, and a health check that flags mistakes such as an unknown faction member or a bad special-move type.
 - **Preview released site:** lets you see the whole site exactly as it will look after release, before release. Only a logged-in admin sees it; visitors get nothing.
-- **Content encoder:** paste or load the content JSON, validate it, and copy the encoded value for `CRISIS_CONTENT_B64`. This runs in your browser.
+- **Content editor:** edit everything in tabs, no JSON needed, then press **PUBLISH CHANGES**. It is live immediately, with no redeploy.
+- **Committee tab:** set up and run caucuses, manage the speakers list, read and delete directives. It saves as you go. The delegate code is shown here.
 
 **Security:** the username and password are **only** in Vercel environment variables. They never appear in the site code, so nobody can find them with Inspect.
 - The server checks them in constant time.
@@ -89,7 +95,11 @@ The admin panel is not linked in the nav. Open `https://<your-site>/admin.html` 
 - Changing `ADMIN_SESSION_SECRET` logs everyone out.
 - The lockout is per server instance, so a long random password is still your best protection.
 
-The admin panel can't edit the live site by itself, because the brief rules out a database. To publish changes, encode the content here, paste it into Vercel, and redeploy.
+## Committee page (`/committee.html`)
+
+Delegates see the live caucus, timers, speakers list and directives without logging in. Timers use the server's clock, so a wrong device clock doesn't matter. Open pages check for changes every 5 seconds during a caucus and every 15 seconds otherwise, and stop while the tab is hidden.
+
+Posting a directive needs the **delegate code**, which only stops strangers from posting. It's the `DELEGATE_CODE` environment variable. Chairs can see it in the admin Committee tab. To change it, update the variable on Vercel and redeploy. If the variable is removed, anyone can post.
 
 ## Deploy on Vercel
 
@@ -104,6 +114,8 @@ The admin panel can't edit the live site by itself, because the brief rules out 
 | `ADMIN_USERNAME` | admin login name (see the private READ-ME-FIRST) |
 | `ADMIN_PASSWORD` | admin password (see the private READ-ME-FIRST) |
 | `ADMIN_SESSION_SECRET` | long random string that signs admin sessions |
+| `DELEGATE_CODE` | code delegates enter to post directives |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | added automatically when a KV store is connected (Project → Storage) |
 
 4. Redeploy so the variables take effect.
 5. Check it: open `https://<your-site>/api/release`. Before the release time it must say `"status":"locked"` and contain nothing else.
@@ -118,14 +130,14 @@ The admin panel can't edit the live site by itself, because the brief rules out 
 
 Vercel allows about 64 KB of environment variables per deployment. That is plenty for text. Put large images on a host you control and reference them by URL in the JSON; they are only loaded after release.
 
-`CRISIS_CONTENT` (raw JSON, not base64) also works if you prefer.
+`CRISIS_CONTENT` (raw JSON, not base64) also works if you prefer. This only seeds the site: after the first publish from the admin panel, KV takes over and these variables are ignored.
 
 ### Changing the release time
 
 Update **both**:
 
 - `RELEASE_AT` on Vercel (this is what actually controls release), and
-- `CONFIG.releaseAt` in `script.js` (only the countdown display, before the first server reply).
+- `CONFIG.releaseAt` in `js/core/config.js` (only the countdown display, before the first server reply).
 
 ### Character pixel art after release
 
@@ -138,7 +150,7 @@ Each character in the JSON carries a `look` object. The sprite engine draws it a
 
 The full list of options (hair styles, facial hair, eyewear, hats, build, props, outfits) is in `docs/release-content.schema.example.json`. Before release, every slot is a glowing silhouette with a "?". An optional `portrait` URL shows in the character's dossier.
 
-**Default fighters:** the two chairs are built in (`DEFAULT_CHARS` in `script.js`). They are always unlocked on the home screen and fight each other before release.
+**Default fighters:** the two chairs are built in (`DEFAULT_CHARS` in `js/game/characters.js`). They are always unlocked on the home screen and fight each other before release.
 
 ### Release sequence and arena behavior
 
@@ -146,7 +158,7 @@ When the server confirms release, visitors on the site see **SIGNAL ACQUIRED**. 
 
 The arena runs CPU vs CPU until someone presses **▶ PLAY**. That opens full screen, counts down 3-2-1-FIGHT and gives the visitor control of the selected fighter against the CPU rival. Phones get on-screen buttons.
 
-The chairs and the "?" silhouettes fight for real (K.O.). Released characters play the same game as a **debate battle**: hits throw words like OBJECTION!, the loser is OUT-ARGUED and the winner WINS THE FLOOR: taunts, no hits and no K.O. To make released characters fight physically too, set `CONFIG.fightAfterRelease = true` in `script.js`.
+The chairs and the "?" silhouettes fight for real (K.O.). Released characters play the same game as a **debate battle**: hits throw words like OBJECTION!, the loser is OUT-ARGUED and the winner WINS THE FLOOR: taunts, no hits and no K.O. To make released characters fight physically too, set `CONFIG.fightAfterRelease = true` in `js/core/config.js`.
 
 Each character's special move comes from `special` in the content JSON: `{ "name": "…", "type": "projectile | stream | wave | dash | uppercut | counter | flash", "color": "#hex" }`. Use `null` for standard moves only. Keeping these in the private content means move names can't hint at the topic.
 
@@ -157,8 +169,8 @@ Each character's special move comes from `special` in the content JSON: `{ "name
 - **Nav or page list:** edit `NAV` in `js/core/config.js`. The header, nav and home menu all update from it.
 - **Chair bios:** edit the placeholder paragraphs in `chairs.html` (search for `EDIT:`).
 - **Chair portraits:** replace `assets/images/tamer-pixel.png` / `mutasim-pixel.png` (572×686 recommended). A labelled fallback shows if a file is missing.
-- **Crisis updates after release:** change the `updates` array in the content JSON, re-encode, update `CRISIS_CONTENT_B64` and redeploy. Open pages pick up changes within ~5 minutes. This is a refresh, not a live stream.
-- **Number of "?" slots before release:** `CONFIG.lockedSlots` in `script.js`. It is display-only and doesn't reveal the real roster size.
+- **Crisis updates after release:** add them in the admin panel's UPDATES tab and press PUBLISH CHANGES. Open pages pick up changes within ~5 minutes. This is a refresh, not a live stream.
+- **Number of "?" slots before release:** `CONFIG.lockedSlots` in `js/core/config.js`. It is display-only and doesn't reveal the real roster size.
 
 ## Controls
 
@@ -176,16 +188,25 @@ Each character's special move comes from `special` in the content JSON: `{ "name
 | M | Toggle sound: background music + effects (starts muted) |
 | Esc | Close any dialog / leave a match |
 
-The intro opens on an animated **first-person pixel-art scene**: you're on a 90s bedroom floor at dusk, holding a controller wired to a retro console and a big CRT TV that shows the game's title screen. Around you are a shelf of tapes, posters, a door with a jacket, a window onto the neighbourhood, a dresser with a VCR, a bed, and snacks on the rug. Pressing **POWER ON** zooms the camera into the TV, the screen flashes, and you land on the start menu. It's drawn in `js/ui/intro-scene.js`. Browsers only allow music after a tap or click, so that tap turns on sound and starts the intro music. **ENTER WITHOUT SOUND** keeps the site muted. The top bar has **SND** (sound) and **FX** (full or reduced effects) toggles.
+The intro opens on an animated **first-person pixel-art scene**: you're on a 90s bedroom floor at dusk, holding a controller wired to a retro console and a big CRT TV that shows the game's title screen. Around you are a shelf of tapes, posters, a door with a jacket, a window onto the neighbourhood, a dresser with a VCR, a bed, and snacks on the rug. Pressing **POWER ON** zooms the camera into the TV, the screen flashes, and you land on the start menu. It's drawn in `js/ui/intro-scene.js`. Browsers only allow music after a tap or click, so that tap turns on sound and starts the intro music. **ENTER WITHOUT SOUND** keeps the site muted. The top bar has **MUSIC** and **FX** (full or reduced effects) toggles.
 
 **iPad and phones:** the game shows on-screen controls on any touch screen, including an iPad with a keyboard attached. It goes full screen where the browser allows it, and otherwise fills the screen. Scrolling and pinch-zoom are locked during a match. Reduced effects turn on automatically if the device asks for reduced motion.
 
 There are two harmless easter eggs. One involves a very famous cheat code.
 
+## Testing
+
+```
+npm run test:unit                  # no network needed
+E2E_ADMIN_USER=… E2E_ADMIN_PASS=… npx playwright test
+```
+
+The browser suite runs against the live site by default (`E2E_BASE_URL` changes that) and skips anything that writes data unless `E2E_ALLOW_WRITES=1` is set. Keep it that way: preview deployments share the production KV store, so writing on a preview changes live data. Never put real credentials in a test file. This repo is public.
+
 ## Before you go live: checklist
 
-- [ ] `/api/release` returns `locked` with no content before the deadline.
-- [ ] `RELEASE_AT` on Vercel matches `CONFIG.releaseAt` in `script.js`.
-- [ ] The repo has no content JSON and no `.env` file: `git log --all --stat | grep -i -E "env|crisis-content"` shows nothing.
-- [ ] Chair bios replaced.
-- [ ] Optional: test a release by setting `RELEASE_AT` a few minutes in the future on a **preview** deployment.
+- [x] `/api/release` returns `locked` with no content before the deadline.
+- [x] `RELEASE_AT` on Vercel matches `CONFIG.releaseAt` in `js/core/config.js`.
+- [x] The repo has no content JSON and no `.env` file: `git log --all --stat | grep -i -E "\.env|crisis-content"` shows nothing.
+- [x] Chair bios replaced.
+- [x] Release moment rehearsed locally with placeholder content. Don't rehearse on a preview: it would serve the real scenario from a public URL.

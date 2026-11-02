@@ -116,6 +116,7 @@
     const edRoot = $('[data-admin-editor]');
     let C = {};
     let contentReady = false;   // true once the server's content (or its absence) is confirmed
+    let dirty = false;          // editor has changes that have not been published
     let activeTab = 'updates';
 
     const TABS = [
@@ -420,9 +421,31 @@
       renderTabBody();
     }
 
+    function caucusStateText(c) {
+      const now = Date.now() + offset;
+      const activePausedMs = (c.status === 'paused' && c.pausedAt) ? now - Date.parse(c.pausedAt) : 0;
+      const totalPausedMs  = (c.accPausedMs || 0) + activePausedMs;
+      const elapsed        = c.startedAt ? now - Date.parse(c.startedAt) - totalPausedMs : 0;
+      const remaining      = Math.max(0, (c.totalMs || 0) - elapsed);
+      return `STATUS: ${c.status.toUpperCase()} · REMAINING: ${fmtMs(remaining)} · TYPE: ${c.type.toUpperCase()}`;
+    }
+
+    // Keeps the Committee tab current without re-rendering it, so typing is never interrupted.
+    setInterval(() => {
+      const bar = activeTab === 'committee' && Comm && Comm.caucus && $('.comm-state-bar', edRoot);
+      if (bar) bar.textContent = caucusStateText(Comm.caucus);
+    }, 1000);
+    setInterval(async () => {
+      if (activeTab !== 'committee' || !Comm || !token() || document.hidden) return;
+      const { res, data } = await capi('', {}).catch(() => ({ res: { ok: false }, data: null }));
+      if (!res.ok || !data || !data.ok) return;
+      Comm.directives = data.directives;
+      const box = $('[data-comm-directives]', edRoot);
+      if (box) renderDirectiveList(box);
+    }, 10000);
+
     function renderCommittee(body) {
       const c = (Comm && Comm.caucus) || null;
-      const dirs = (Comm && Comm.directives) || [];
 
       if (!Comm) {
         body.append(hint('Loading committee state…'));
@@ -470,6 +493,7 @@
       const setupMsg = h('span', { class: 'admin-msg' });
       const setupBtn = h('button', { class: 'btn mag', type: 'button' }, 'SET UP CAUCUS');
       setupBtn.addEventListener('click', async () => {
+        if (c && (c.status === 'active' || c.status === 'paused') && !confirm('A caucus is running. Replace it? Its timer and speakers list will be lost.')) return;
         setupBtn.disabled = true;
         setupMsg.textContent = 'SETTING UP…';
         const { res: r, data: d } = await capi('caucus', {
@@ -491,16 +515,7 @@
       // ---- CONTROLS ----
       if (c && c.status !== 'idle') {
         body.append(esect('CONTROLS'));
-        const now = Date.now() + offset;
-        const activePausedMs = (c.status === 'paused' && c.pausedAt) ? now - Date.parse(c.pausedAt) : 0;
-        const totalPausedMs  = (c.accPausedMs || 0) + activePausedMs;
-        const elapsed        = c.startedAt ? now - Date.parse(c.startedAt) - totalPausedMs : 0;
-        const remaining      = Math.max(0, (c.totalMs || 0) - elapsed);
-
-        const stateBar = h('div', { class: 'comm-state-bar' },
-          `STATUS: ${c.status.toUpperCase()} · REMAINING: ${fmtMs(remaining)} · TYPE: ${c.type.toUpperCase()}`
-        );
-        body.append(stateBar);
+        body.append(h('div', { class: 'comm-state-bar', text: caucusStateText(c) }));
 
         const ctrlRow = h('div', { class: 'comm-ctrl-row' });
         async function ctrl(op) {
@@ -581,32 +596,39 @@
 
       // ---- DIRECTIVES ----
       body.append(esect('PUBLIC DIRECTIVES'));
-      body.append(hint(`${dirs.length} directive${dirs.length === 1 ? '' : 's'} submitted. Delegates post from the COMMITTEE page.`));
-      const dirRefreshBtn = abtn('REFRESH', loadCommittee);
-      body.append(dirRefreshBtn);
+      const code = status && status.delegateCode;
+      body.append(hint(code ? `Delegate code: ${code}. Give this to delegates; the COMMITTEE page asks for it before they can post.` : 'Anyone can post: DELEGATE_CODE is not set on Vercel.'));
+      const list = h('div', { dataset: { commDirectives: '' } });
+      renderDirectiveList(list);
+      body.append(abtn('REFRESH', loadCommittee), list);
+    }
 
+    function renderDirectiveList(box) {
+      const dirs = Comm.directives || [];
+      box.innerHTML = '';
+      box.append(hint(`${dirs.length} directive${dirs.length === 1 ? '' : 's'} submitted. This list updates automatically.`));
       if (!dirs.length) {
-        body.append(h('p', { class: 'muted', text: 'No directives yet.' }));
-      } else {
-        const sorted = dirs.slice().sort((a, b) => (b.time || '').localeCompare(a.time || ''));
-        sorted.forEach(d => {
-          const card = h('div', { class: 'comm-dir-card' },
-            h('div', { class: 'comm-dir-header' },
-              h('span', { class: 'comm-dir-delegation', text: d.delegation }),
-              dbtn(async () => {
-                const { res: r, data: rd } = await capi('del-directive', {
-                  init: { method: 'POST', body: JSON.stringify({ id: d.id }) },
-                  headers: { 'Content-Type': 'application/json' }
-                });
-                if (r.ok && rd && rd.ok) { Sound.play('select'); Comm.directives = Comm.directives.filter(x => x.id !== d.id); renderTabBody(); }
-                else { toast('COULD NOT DELETE DIRECTIVE'); }
-              })
-            ),
-            h('div', { class: 'comm-dir-text', text: d.text })
-          );
-          body.append(card);
-        });
+        box.append(h('p', { class: 'muted', text: 'No directives yet.' }));
+        return;
       }
+      const sorted = dirs.slice().sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+      sorted.forEach(d => {
+        const card = h('div', { class: 'comm-dir-card' },
+          h('div', { class: 'comm-dir-header' },
+            h('span', { class: 'comm-dir-delegation', text: d.delegation }),
+            dbtn(async () => {
+              const { res: r, data: rd } = await capi('del-directive', {
+                init: { method: 'POST', body: JSON.stringify({ id: d.id }) },
+                headers: { 'Content-Type': 'application/json' }
+              });
+              if (r.ok && rd && rd.ok) { Sound.play('select'); Comm.directives = Comm.directives.filter(x => x.id !== d.id); renderDirectiveList(box); }
+              else { toast('COULD NOT DELETE DIRECTIVE'); }
+            })
+          ),
+          h('div', { class: 'comm-dir-text', text: d.text })
+        );
+        box.append(card);
+      });
     }
 
     // ---- LOAD & PUBLISH ----
@@ -627,6 +649,7 @@
       if (res.ok && data && data.content) {
         C = JSON.parse(JSON.stringify(data.content));
         contentReady = true;
+        dirty = false;
         renderTabBody();
         // Show a clear banner if the loaded content is still placeholder data
         let sampleBanner = $('[data-a="sample-banner"]');
@@ -690,6 +713,8 @@
 
       if (res.ok && data && data.ok) {
         if (data.deployed) {
+          dirty = false;
+          refresh();                   // update the counts and health check
           statusEl.className = 'admin-msg ok';
           statusEl.textContent = data.instant
             ? `✓ PUBLISHED (${kb} KB) · LIVE IMMEDIATELY`
@@ -745,8 +770,18 @@
     // ---- wire up editor ----
     renderTabs();
     renderTabBody();
-    ed('[data-editor-load]').addEventListener('click', loadContent);
+    ed('[data-editor-load]').addEventListener('click', () => {
+      if (dirty && !confirm('Discard your unpublished changes and reload from the server?')) return;
+      loadContent();
+    });
     ed('[data-editor-publish]').addEventListener('click', publishContent);
+    const markDirty = (e) => {
+      if (activeTab === 'committee') return;
+      if (e.type === 'click' && !e.target.closest('.ed-add, .ed-del')) return;
+      dirty = true;
+    };
+    ['input', 'change', 'click'].forEach((type) => ed('[data-editor-body]').addEventListener(type, markDirty));
+    window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
 
     if (token()) { show(true); refresh(); loadContent(); } else show(false);
   }

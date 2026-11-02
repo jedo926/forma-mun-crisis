@@ -459,6 +459,19 @@ describe('committee handler — with KV', () => {
     assert.strictEqual(r.json.directives.length, 20);
   });
 
+  test('delegate code is enforced when DELEGATE_CODE is set', async () => {
+    process.env.DELEGATE_CODE = 'FORMA-ABC123';
+    try {
+      const post = (code) => call({ method: 'POST', url: '/api/committee?action=directive', body: { delegation: 'D', text: 't', code } });
+      assert.strictEqual((await post('wrong')).statusCode, 403);
+      assert.strictEqual((await post(undefined)).json.code, 'bad_code');
+      assert.strictEqual((await post(' forma-abc123 ')).statusCode, 200);   // forgiving about case and spaces
+      const r = await call({ method: 'GET', url: '/api/committee' });
+      assert.strictEqual(r.json.codeRequired, true);
+      assert.ok(!JSON.stringify(r.json).includes('ABC123'), 'the public API must never reveal the code');
+    } finally { delete process.env.DELEGATE_CODE; }
+  });
+
   test('deleting a directive removes only that one', async () => {
     const a = await directive(1); await directive(2);
     await call({ method: 'POST', url: '/api/committee?action=del-directive', headers: admin(), body: { id: a.json.id } });
