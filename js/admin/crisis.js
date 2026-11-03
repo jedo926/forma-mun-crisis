@@ -1,16 +1,24 @@
-/* FORMA MUN · Crisis Division — Admin: Crisis Room
-   One place to see the session and what has happened. The caucus itself still runs from the
-   Committee tab. Browsers poll a small change counter and only read everything when it moves. */
+/* FORMA MUN · Crisis Division — Admin: Crisis Room, the shared part
+   Holds the state, the tabs, LIVE and the log. Other tabs live in crisis-*.js and register in
+   A.crisis.views. The caucus itself still runs from the Committee tab. Browsers poll a small
+   change counter and only read everything when it moves. */
 (function (F) {
   'use strict';
   const { $, h, toast, session, fmtStamp, isTyping, Sound } = F;
   const A = F.Admin;
   const { fieldAttrs, lbl, ecard, hint, esect, pbtn, ta } = A.ui;
 
-  const TABS = [['live', 'LIVE'], ['log', 'FULL LOG']];
+  const TABS = [['live', 'LIVE'], ['motions', 'MOTIONS'], ['directives', 'DIRECTIVES'], ['crisis', 'CRISIS'], ['messages', 'MESSAGES'], ['people', 'PEOPLE'], ['log', 'LOG'], ['settings', 'SETTINGS']];
+  const SAYS = {
+    busy: 'SOMEONE ELSE IS SAVING · TRY AGAIN', bad_state: 'THIS ALREADY CHANGED · CHECK THE LATEST', stale: 'THIS ALREADY CHANGED · CHECK THE LATEST',
+    missing_reason: 'GIVE A REASON FIRST', missing_text: 'FILL IN THE TEXT FIRST', missing_title: 'ADD A TITLE FIRST', missing_headline: 'ADD A HEADLINE FIRST',
+    missing_proposer: 'SAY WHO PROPOSED IT', missing_duration: 'SET THE TIME FIRST', missing_question: 'WRITE THE QUESTION FIRST', missing_threshold: 'CHOOSE A THRESHOLD',
+    no_recipients: 'CHOOSE WHO RECEIVES IT', vote_already_open: 'ANOTHER VOTE IS STILL OPEN', nobody_present: 'NOBODY IS MARKED PRESENT', no_quorum: 'NO QUORUM',
+    too_many_votes: 'MORE VOTES THAN VOTERS', bad_tally: 'CHECK THE VOTE COUNTS', not_eligible: 'THAT PERSON CANNOT VOTE IN THIS VOTE', bad_rules: 'CHECK THE RULES', bad_duration: 'SET THE TIME FIRST'
+  };
   const PAGE = 50;
   const POLL_MS = 5000;
-  const R = A.crisis = { state: null, tab: session.get('crisisTab', 'live') };
+  const R = A.crisis = { state: null, tab: session.get('crisisTab', 'live'), views: {} };
 
   let open = false;
   let rev = -1;
@@ -39,6 +47,23 @@
     chain = job;
     return job;
   };
+
+  /** Does one change, shows what happened and refreshes. Returns the reply, or null on failure. */
+  R.act = async (action, body, doneText) => {
+    const r = await R.send(action, body);
+    if (r.ok) {
+      Sound.play('select');
+      if (doneText) toast(doneText);
+      await pullState();
+      return r;
+    }
+    if (!r.expired) { toast(SAYS[r.code] || 'THAT DID NOT WORK · TRY AGAIN'); Sound.play('error'); }
+    return null;
+  };
+  R.go = (tab) => { R.tab = tab; session.set('crisisTab', tab); log.loaded = false; Sound.play('move'); R.render(); window.scrollTo(0, 0); };
+  R.badge = (text, cls) => h('span', { class: 'crisis-badge ' + (cls || text), text: text.replace(/-/g, ' ').toUpperCase() });
+  R.row = (attrs, ...kids) => h('div', Object.assign({ class: 'crisis-row' }, attrs), ...kids);
+  R.pull = () => pullState();
 
   async function pullState() {
     const { res, data } = await A.crisisGet('state').catch(() => ({ res: { ok: false }, data: null }));
@@ -127,11 +152,13 @@
 
   function statTiles() {
     const s = R.state.summary;
-    const tile = (label, value, panelTab) => h('button', {
-      class: 'crisis-tile', type: 'button', dataset: { crisisTile: label },
-      onclick: () => { A.comm.tab = panelTab; session.set('commTab', panelTab); A.goToPanel('committee'); }
-    }, h('b', { text: value }), h('span', { text: label }));
-    return h('div', { class: 'crisis-tiles' }, tile('PRESENT', `${s.present} / ${s.delegates}`, 'delegates'), tile('DIRECTIVES', String(s.directives), 'directives'));
+    const tile = (label, value, open2) => h('button', { class: 'crisis-tile', type: 'button', dataset: { crisisTile: label }, onclick: open2 }, h('b', { text: value }), h('span', { text: label }));
+    return h('div', { class: 'crisis-tiles' },
+      tile('PRESENT', `${s.present} / ${s.delegates}`, () => { A.comm.tab = 'delegates'; session.set('commTab', 'delegates'); A.goToPanel('committee'); }),
+      tile('OPEN MOTIONS', String(s.openMotions), () => R.go('motions')),
+      tile('DIRECTIVES TO REVIEW', String(s.pending), () => R.go('directives')),
+      tile('AWAITING OUTCOME', String(s.awaitingOutcome), () => R.go('directives')),
+      tile('UPDATES TO SEND', String(s.draftUpdates + s.approvedUpdates), () => R.go('crisis')));
   }
 
   function feedRow(e) {
@@ -161,7 +188,12 @@
   }
 
   function viewLive(body) {
-    body.append(caucusCard(), statTiles(), esect('ACTIVITY'));
+    const s = R.state.session;
+    body.append(h('p', { class: 'crisis-who' }, s ? `Session ${s.number}${s.phase ? ` · ${s.phase}` : ''} · ` : '',
+      h('a', { class: 'crisis-link', href: 'projector.html', target: '_blank', rel: 'noopener', dataset: { crisisProjector: '' } }, 'OPEN PROJECTOR ↗')));
+    body.append(caucusCard());
+    if (R.countdownCard) body.append(R.countdownCard());
+    body.append(statTiles(), esect('ACTIVITY'));
     const list = h('ol', { class: 'crisis-feed', dataset: { crisisFeed: '' } });
     if (!R.state.feed.length) body.append(hint('Nothing yet. What chairs do will appear here.'));
     list.append(...R.state.feed.map(feedRow));
@@ -192,13 +224,14 @@
       more.dataset.crisisMore = '';
       body.append(more);
     }
+    if (R.archiveTools) body.append(R.archiveTools());
   }
 
   // ---- shell ----
   function renderTabs() {
     return h('div', { class: 'comm-tabs', role: 'group', 'aria-label': 'Crisis Room sections' }, TABS.map(([id, label]) => h('button', {
       class: 'chip-btn' + (id === R.tab ? ' active' : ''), type: 'button', 'aria-pressed': String(id === R.tab), dataset: { crisisTab: id },
-      onclick: () => { R.tab = id; session.set('crisisTab', id); log.loaded = false; Sound.play('move'); R.render(); }
+      onclick: () => R.go(id)
     }, label)));
   }
 
@@ -215,7 +248,7 @@
       h('button', { class: 'crisis-link', type: 'button', onclick: () => { session.set('chairName', ''); R.render(); } }, 'CHANGE NAME'));
     const pane = h('div', { dataset: { crisisPane: R.tab } });
     body.append(who, renderTabs(), pane);
-    (R.tab === 'log' ? viewLog : viewLive)(pane);
+    ({ live: viewLive, log: viewLog }[R.tab] || R.views[R.tab] || viewLive)(pane);
     window.scrollTo(0, y);
   };
 

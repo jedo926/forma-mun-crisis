@@ -7,7 +7,8 @@
   const A = F.Admin;
   const { fieldAttrs, lbl, ecard, hint, dbtn, pbtn, ta } = A.ui;
 
-  const TABS = [['run', 'RUN CAUCUS'], ['delegates', 'DELEGATES'], ['directives', 'DIRECTIVES']];
+  // New directives are reviewed in the Crisis Room. This tab only tidies old public ones.
+  const TABS = [['run', 'RUN CAUCUS'], ['delegates', 'DELEGATES'], ['directives', 'OLD DIRECTIVES']];
   const C = A.comm = { data: null, delegates: [], views: {}, tab: session.get('commTab', 'run') };
 
   let open = false;
@@ -64,7 +65,7 @@
 
   function renderTabs() {
     const count = ((C.data && C.data.directives) || []).length;
-    return h('div', { class: 'comm-tabs', role: 'group', 'aria-label': 'Committee sections' }, TABS.map(([id, label]) => h('button', {
+    return h('div', { class: 'comm-tabs', role: 'group', 'aria-label': 'Committee sections' }, TABS.filter(([id]) => id !== 'directives' || count).map(([id, label]) => h('button', {
       class: 'chip-btn' + (id === C.tab ? ' active' : ''), type: 'button', 'aria-pressed': String(id === C.tab), dataset: { commTab: id },
       onclick: () => { C.tab = id; session.set('commTab', id); Sound.play('move'); C.render(); pull(true); }
     }, id === 'directives' && count ? `${label} (${count})` : label)));
@@ -120,12 +121,6 @@
   schedule();
 
   // ---- directives ----
-  function copyCode(code) {
-    const done = () => { toast('DELEGATE CODE COPIED'); Sound.play('select'); };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => toast('COULD NOT COPY · CODE: ' + code));
-    else toast('COULD NOT COPY · CODE: ' + code);
-  }
-
   function directiveCard(d) {
     return h('div', { class: 'comm-dir-card', dataset: { directive: d.id } },
       h('div', { class: 'comm-dir-header' },
@@ -143,14 +138,9 @@
   }
 
   C.views.directives = (body) => {
+    if (!(C.data.directives || []).length) { C.tab = 'run'; C.views.run(body); return; }
     const dirs = (C.data.directives || []).slice().sort((a, b) => (b.time || '').localeCompare(a.time || ''));
-    const code = A.status && A.status.delegateCode;
-    if (code) {
-      body.append(h('div', { class: 'comm-ctrl-row comm-mid' }, h('span', { class: 'comm-code', text: `DELEGATE CODE: ${code}` }), pbtn('COPY', () => copyCode(code))),
-        hint('Delegates need this code to post from the Committee page.'));
-    } else {
-      body.append(hint('Anyone can post: DELEGATE_CODE is not set on Vercel.'));
-    }
+    body.append(hint('These were posted before delegate logins. They stay public until you delete them. New directives are in the Crisis Room.'));
     const list = h('div');
     const paint = () => {
       const q = dirFilter.trim().toLowerCase();

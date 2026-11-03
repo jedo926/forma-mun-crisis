@@ -74,6 +74,8 @@ http.createServer((req, res) => {
     else if (cmd === 'DEL') result = store.delete(key) ? 1 : 0;
     else if (cmd === 'HSET') { const h = store.get(key) || new Map(); h.set(rest[0], rest[1]); store.set(key, h); result = 1; }
     else if (cmd === 'HDEL') { const h = store.get(key); result = h && h.delete(rest[0]) ? 1 : 0; }
+    else if (cmd === 'HGET') { const h = store.get(key); result = h && h.has(rest[0]) ? h.get(rest[0]) : null; }
+    else if (cmd === 'EXPIRE') result = 1;
     else if (cmd === 'HGETALL') { const h = store.get(key); result = h ? [...h.entries()].flat() : []; }
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ result }));

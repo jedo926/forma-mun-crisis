@@ -106,10 +106,13 @@ Run on 25 Oct 2026 with Node 22 and headless Chromium (Playwright), against a lo
 - **Layout:** every admin section checked at 1280px and 390px with no sideways scrolling.
 - **Not checked:** two chairs pressing buttons at the same moment on the live site. Changes to the caucus are in order within one browser, but two browsers can still overwrite each other if they press within a fraction of a second.
 
-## Crisis Room, Phase 1 (3 Nov 2026)
+## Crisis Room, all phases (3 Nov 2026)
 
-- **Unit:** 92/92 passed (`npm run test:unit`). Added: a signed token that isn't an admin session is refused by every admin endpoint, simultaneous caucus changes all survive, a held lock answers busy instead of overwriting, the log's names and order, unchanged presses aren't logged, repeated operations run once, log paging, and chair notes staying out of public responses.
-- **Browser, local server with an in-memory KV:** 70/70 passed (`npm run test:local`). Added: the chair name step, notes, a caucus showing up with the right name, a second chair seeing changes without refreshing, typing surviving a refresh, the full log, and the connection warning.
-- **By hand in Chromium:** a fictional caucus at 1280px and 390px.
-- **Not checked:** the lock and log on real Upstash, because previews share production data. Check them on a temporary separate Vercel project before relying on them.
+- **Unit:** 127/127 passed (`npm run test:unit`). Covers vote sums, frozen voters and rules, quorum, corrections, delegate logins, every chair action refusing a delegate session, one delegate never reaching another's records, drafts staying private, unchangeable sent versions, two chairs reviewing at once, updates needing approval and going out once, faction and character delivery, read receipts, and the projector showing nothing private.
+- **Browser, local server with an in-memory KV:** 71/71 passed (`npm run test:local`).
+- **Full rehearsal:** `npm run test:rehearsal` runs a chair, two delegates (one on a phone) and the projector at once, from delegate setup to the final archive. Passed three times in a row.
+- **Layout:** every Crisis Room tab, the delegate desk and the projector checked by eye and for sideways scrolling at 1280px and 390px, and the projector at 1920px.
+- **Bugs these tests found, now fixed:** a second chair's review silently replacing the first; a late redraw swallowing the TELL THE DELEGATE click; renaming a threshold blocking the rules from saving; a connection warning wiping typed text.
+- **Not checked:** the lock, log and login on real Upstash, because previews share production data. Check on a temporary separate Vercel project before relying on them.
+- **Not checked:** real phones, screen readers, printing the code cards on paper, and 30 delegates at once. The rehearsal used two delegates.
 - **Upstash command limit:** not confirmed. Neither the Vercel MCP nor the CLI could read the plan, so check it in the Upstash dashboard before the conference.

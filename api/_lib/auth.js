@@ -41,6 +41,28 @@ function adminFromReq(req) {
   return session && session.sub === 'admin' ? session : null;
 }
 
+/**
+ * Delegate tokens have their own signing key, so no delegate token can ever pass as an admin
+ * one, even if the sub check above were lost.
+ */
+const delegateKey = () => crypto.createHmac('sha256', secret()).update('delegate-session').digest('hex');
+function signDelegate(payload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return body + '.' + crypto.createHmac('sha256', delegateKey()).update(body).digest('base64url');
+}
+function delegateFromReq(req) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (token.length > 2000) return null;
+  const [body, sig] = token.split('.');
+  if (!body || !sig) return null;
+  if (!safeEqual(sig, crypto.createHmac('sha256', delegateKey()).update(body).digest('base64url'))) return null;
+  try {
+    const p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    return p && p.sub === 'delegate' && p.exp && Date.now() < p.exp ? p : null;
+  } catch (e) { return null; }
+}
+
 function clientIp(req) {
   const xf = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
   return xf || (req.socket && req.socket.remoteAddress) || 'unknown';
@@ -57,4 +79,4 @@ async function readBody(req, limit = 20000) {
   });
 }
 
-module.exports = { SESSION_MS, secret, sha, safeEqual, sign, verify, adminFromReq, clientIp, readBody };
+module.exports = { SESSION_MS, secret, sha, safeEqual, sign, verify, adminFromReq, signDelegate, delegateFromReq, clientIp, readBody };

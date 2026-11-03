@@ -8,8 +8,7 @@
  *   GET  /api/committee                       → caucus state + directives
  *        an idle caucus is sent without its topic or speakers unless the caller is an admin,
  *        because names can reveal the scenario before release
- *   POST /api/committee?action=directive      body { delegation, text, code }
- *        code must match DELEGATE_CODE when that env var is set
+ *   POST /api/committee?action=directive      closed: delegates now log in and submit through /api/crisis
  *
  * Admin only (Authorization: Bearer <admin token>):
  *   POST /api/committee?action=caucus         body { type, topic, totalMin, totalSec, perSpeakerMin, perSpeakerSec }
@@ -22,7 +21,7 @@
 const { send } = require('./_lib/content');
 const { kvAvailable, kvGet, kvSet, kvHset, kvHdel, kvHvals, kvLock } = require('./_lib/kv');
 const { logEvent, actorFrom } = require('./_lib/activity');
-const { adminFromReq, readBody, safeEqual } = require('./_lib/auth');
+const { adminFromReq, readBody } = require('./_lib/auth');
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
 const NO_IDX = { 'X-Robots-Tag': 'noindex, nofollow' };
@@ -150,27 +149,12 @@ async function handler(req, res) {
     const [caucus, directives] = await Promise.all([getCaucus(), getDirectives()]);
     const isAdmin = !!adminFromReq(req);
     const shown = !isAdmin && caucus.status === 'idle' ? Object.assign({}, caucus, { topic: '', speakers: [] }) : caucus;
-    return send(res, 200, { ok: true, caucus: shown, directives, serverTime, kvReady: kvAvailable(), codeRequired: !!process.env.DELEGATE_CODE, admin: isAdmin }, CORS);
+    return send(res, 200, { ok: true, caucus: shown, directives, serverTime, kvReady: kvAvailable(), admin: isAdmin }, CORS);
   }
 
   // ── Public: submit directive ──────────────────────────────
   if (req.method === 'POST' && action === 'directive') {
-    if (!kvAvailable()) return send(res, 503, { ok: false, code: 'kv_required' }, CORS);
-    const body = await readBody(req);
-    const required = process.env.DELEGATE_CODE;
-    if (required && !safeEqual(String(body.code || '').trim().toUpperCase(), required.trim().toUpperCase())) {
-      return send(res, 403, { ok: false, code: 'bad_code' }, CORS);
-    }
-    const delegation = String(body.delegation || '').trim().slice(0, 80);
-    const text = String(body.text || '').trim().slice(0, 2000);
-    if (!delegation || !text) return send(res, 400, { ok: false, code: 'missing_fields' }, CORS);
-    const id = 'dir_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-    try {
-      await kvHset(DIR_KEY, id, JSON.stringify({ id, delegation, text, time: serverTime }));
-    } catch (e) {
-      return send(res, 503, { ok: false, code: 'storage_error' }, CORS);
-    }
-    return send(res, 200, { ok: true, id }, CORS);
+    return send(res, 410, { ok: false, code: 'use_login' }, CORS);
   }
 
   // ── Admin: saved delegate list ────────────────────────────

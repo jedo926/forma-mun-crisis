@@ -255,3 +255,14 @@ body[data-page="admin"] .topbar { position: static; }
   .crisis-feed-text { grid-column: 1 / -1; grid-row: 2; }
 }
 .ed-card > .ed-lbl { white-space: normal; line-height: 1.6; }
+[data-crisis-body] .ed-row .ed-lbl { white-space: normal; flex-shrink: 1; }
+.crisis-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; margin-bottom: 8px; background: #0b0d1a; border: 1px solid var(--line); }
+.crisis-ref { font-family: var(--px); font-size: 10px; color: var(--cyan); }
+.crisis-main { flex: 1 1 220px; min-width: 0; font-size: 20px; line-height: 1.25; color: var(--text); overflow-wrap: anywhere; }
+.crisis-main b { font-weight: 400; color: #fff; }
+.crisis-sub { display: block; font-size: 17px; color: var(--muted); white-space: pre-wrap; }
+.crisis-text { margin: 0; font-size: 20px; line-height: 1.3; white-space: pre-wrap; overflow-wrap: anywhere; }
+.crisis-badge { padding: 3px 7px; font-family: var(--px); font-size: 10px; line-height: 1.6; color: var(--muted); border: 2px solid currentColor; white-space: nowrap; }
+.crisis-badge.passed, .crisis-badge.approved, .crisis-badge.completed, .crisis-badge.published, .crisis-badge.in-order { color: #00ff88; }
+.crisis-badge.failed, .crisis-badge.rejected, .crisis-badge.out-of-order { color: var(--red); }
+.crisis-badge.proposed, .crisis-badge.submitted, .crisis-badge.voting, .crisis-badge.draft, .crisis-badge.hold, .crisis-badge.review, .crisis-badge.revision, .crisis-badge.partial { color: #ffd166; }

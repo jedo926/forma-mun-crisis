@@ -6,7 +6,8 @@
     "test:unit": "node --test test/server.test.js",
     "test:e2e": "npx playwright test",
     "test": "npm run test:unit && npm run test:e2e",
-    "test:local": "node test/run-local-e2e.js"
+    "test:local": "node test/run-local-e2e.js",
+    "test:rehearsal": "node test/run-local-e2e.js --rehearsal"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1"

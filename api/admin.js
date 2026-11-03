@@ -219,7 +219,6 @@ async function handler(req, res) {
       released,
       releaseConfigOk: releaseMs !== null,
       kvReady: kvAvailable(),
-      delegateCode: process.env.DELEGATE_CODE || null,
       draft: draft ? { savedAt: draft.savedAt } : null,
       report: await readReportMeta(),
       canRestore,

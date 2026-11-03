@@ -101,35 +101,11 @@ test.describe('Committee page', () => {
     await expect(page.locator('#caucus-empty')).toBeVisible();
   });
 
-  test('directive form is present', async ({ page }) => {
+  test('the delegate desk asks for a login code', async ({ page }) => {
     await page.goto('/committee.html');
-    await expect(page.locator('#dir-delegation')).toBeVisible();
-    await expect(page.locator('#dir-text')).toBeVisible();
-    await expect(page.locator('#dir-submit')).toBeVisible();
-  });
-
-  test('submitting without delegation name shows error', async ({ page }) => {
-    await page.goto('/committee.html');
-    await page.locator('#dir-text').fill('Test directive text');
-    await page.locator('#dir-submit').click();
-    await expect(page.locator('#dir-msg')).toHaveText(/ENTER YOUR DELEGATION NAME/i);
-  });
-
-  test('submitting without text shows error', async ({ page }) => {
-    await page.goto('/committee.html');
-    await page.locator('#dir-delegation').fill('Germany');
-    await page.locator('#dir-submit').click();
-    await expect(page.locator('#dir-msg')).toHaveText(/WRITE YOUR DIRECTIVE/i);
-  });
-
-  test('submitting with both fields submits directive successfully', async ({ page }) => {
-    test.skip(!ALLOW_WRITES, 'posts a real directive');
-    await page.goto('/committee.html');
-    await page.locator('#dir-delegation').fill('Germany');
-    await page.locator('#dir-text').fill('We propose immediate ceasefire negotiations.');
-    await page.locator('#dir-code').fill('local-code');
-    await page.locator('#dir-submit').click();
-    await expect(page.locator('#dir-msg')).toHaveText(/DIRECTIVE SUBMITTED/i, { timeout: 10_000 });
+    await expect(page.locator('#desk-code')).toBeVisible();
+    await page.locator('#desk-login').click();
+    await expect(page.locator('[data-desk-msg]')).toHaveText('ENTER YOUR CODE');
   });
 
   test('committee API returns valid JSON with idle caucus', async ({ request }) => {
@@ -443,11 +419,11 @@ test.describe('Admin — running a committee', () => {
     await expect(page.locator('[data-login-msg]')).toHaveText(/SESSION EXPIRED/);
   });
 
-  test('directives can be found and deleted only after confirming', async ({ page, request }) => {
-    await request.post('/api/committee?action=directive', { data: { delegation: 'Testland', text: 'Findable directive', code: 'local-code' } });
+  test('old public directives can be found and deleted only after confirming', async ({ page, request }) => {
+    const old = { id: 'dir_old', delegation: 'Testland', text: 'Findable directive', time: new Date().toISOString() };
+    await request.post('http://127.0.0.1:4803/', { data: ['HSET', 'crisis:directives:v2', old.id, JSON.stringify(old)] });
     await openCommittee(page);
     await page.locator('[data-comm-tab="directives"]').click();
-    await expect(body(page)).toContainText('DELEGATE CODE: local-code');
     const card = body(page).locator('.comm-dir-card', { hasText: 'Findable directive' });
     await expect(card).toBeVisible();
     await page.once('dialog', (d) => d.dismiss());
@@ -556,6 +532,96 @@ test.describe('Admin — Crisis Room', () => {
     await expect(page.locator('[data-crisis-offline]')).toBeVisible({ timeout: 12_000 });
     await context.unroute('**/api/crisis**');
     await expect(page.locator('[data-crisis-offline]')).toHaveCount(0, { timeout: 12_000 });
+  });
+});
+
+test.describe('Crisis Room — a full session', () => {
+  test.skip(!ADMIN_PASS, 'set E2E_ADMIN_USER and E2E_ADMIN_PASS');
+  test.skip(!process.env.E2E_LOCAL, 'changes committee data, so it only runs on the local server');
+  test.describe.configure({ mode: 'serial' });
+
+  const send = (page, action, body) => page.evaluate(([a, b]) => window.FORMA.Admin.crisis.send(a, b), [action, body]);
+  async function chair(page) {
+    page.on('dialog', (d) => d.accept());
+    await adminLogin(page);
+    await openPanel(page, 'crisis');
+    await page.locator('[data-chair-name]').fill('Sara');
+    await page.locator('[data-chair-save]').click();
+    await expect(page.locator('[data-crisis-tab="motions"]')).toBeVisible();
+  }
+  const tab = (page, name) => page.locator(`[data-crisis-tab="${name}"]`).click();
+  /** Delegates log in only after release, so this waits for the fake store's rehearsal switch. */
+  async function logIn(page, code) {
+    await page.goto('/committee.html');
+    await page.locator('#desk-code').fill(code);
+    await page.locator('#desk-login').click();
+  }
+  const run = Date.now().toString(36);
+  const names = [`Ada ${run}`, `Bo ${run}`, `Cy ${run}`];
+  let codes = {};
+
+  test('chairs add delegates, make codes and link factions', async ({ page }) => {
+    await chair(page);
+    await page.evaluate(async (list) => {
+      const C = window.FORMA.Admin.comm;
+      await C.send('control', { op: 'clear' });
+      for (const d of (await C.send('delegate', { op: 'all-present' })).delegates || []) await C.send('delegate', { op: 'remove', id: d.id });
+      await C.send('delegate', { op: 'add', names: list });
+    }, names);
+    await page.evaluate(() => window.FORMA.Admin.crisis.pull());
+    await tab(page, 'people');
+    await page.locator('[data-codes-make]').click();
+    await expect(page.locator('[data-codes-fresh]')).toBeVisible();
+    for (const name of names) codes[name] = (await page.locator(`[data-code="${name}"] .comm-code`).textContent()).trim();
+    expect(Object.values(codes).every((c) => /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(c))).toBe(true);
+    const ids = await page.evaluate(() => window.FORMA.Admin.crisis.state.people);
+    for (const p of ids) await send(page, 'person-set', { id: p.id, faction: p.name.startsWith('Ada') ? 'Red Team' : 'Blue Team', character: '' });
+    await page.reload();
+    await tab(page, 'people');
+    await expect(page.locator(`[data-person="${names[0]}"]`)).toContainText('HAS CODE');
+  });
+
+  test('a motion goes from proposal to vote to a caucus on the Committee tab', async ({ page }) => {
+    await chair(page);
+    await tab(page, 'motions');
+    await page.locator('[data-motion-proposer]').fill(names[0]);
+    await page.locator('[data-motion-topic]').fill('Harbour talks');
+    await page.locator('[data-motion-add]').click();
+    const row = page.locator('[data-motion]', { hasText: 'Harbour talks' }).first();
+    await row.locator('[data-motion-in-order]').click();
+    await row.locator('[data-motion-vote]').click();
+    await expect(page.locator('[data-vote-open]')).toContainText('3 voters');
+    await page.locator('[data-vote-count="for"]').fill('2');
+    await page.locator('[data-vote-count="against"]').fill('1');
+    await page.locator('[data-vote-close]').click();
+    await expect(page.locator('[data-vote]').first()).toContainText('PASSED');
+    await page.locator('[data-motion]', { hasText: 'Harbour talks' }).first().locator('[data-motion-carry]').click();
+    await expect(page.locator('[data-panel-id="committee"]')).toBeVisible();
+    await expect(page.locator('[data-comm-start]')).toBeVisible();
+    await expect(page.locator('[data-committee-body]')).toContainText('Harbour talks');
+  });
+
+  test('before release a delegate code is refused', async ({ page }) => {
+    test.skip(!codes[names[0]], 'needs the codes from the first test');
+    await logIn(page, codes[names[0]]);
+    await expect(page.locator('[data-desk-msg]')).toHaveText('LOGIN OPENS AT RELEASE');
+  });
+
+  test('the projector shows only public information', async ({ page, context }) => {
+    await chair(page);
+    await page.evaluate(() => window.FORMA.Admin.crisis.send('note', { text: 'PRIVATE CHAIR NOTE' }));
+    await send(page, 'session-set', { number: 2, phase: 'Formal debate', banner: 'Welcome back' });
+    await page.evaluate(() => window.FORMA.Admin.comm.send('control', { op: 'start' }));
+    const screen = await context.newPage();
+    await screen.goto('/projector.html');
+    await expect(screen.locator('[data-proj-session]')).toContainText('SESSION 2');
+    await expect(screen.locator('[data-proj-banner]')).toHaveText('Welcome back');
+    await expect(screen.locator('[data-proj-clock]')).toHaveText(/^\d\d:\d\d$/);
+    await expect(screen.locator('main')).toContainText('Harbour talks');
+    await expect(screen.locator('main')).not.toContainText('PRIVATE CHAIR NOTE');
+    await expect(screen.locator('[data-proj-link]')).toHaveText('LIVE');
+    await page.evaluate(() => window.FORMA.Admin.comm.send('control', { op: 'stop' }));
+    await screen.close();
   });
 });
 

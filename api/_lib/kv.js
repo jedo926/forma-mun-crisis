@@ -26,11 +26,13 @@ const kvSet = (key, val) => kvCmd(['SET', key, typeof val === 'string' ? val : J
 const kvDel = (key) => kvCmd(['DEL', key]);
 const kvHset = (key, field, val) => kvCmd(['HSET', key, field, val]);
 const kvHdel = (key, field) => kvCmd(['HDEL', key, field]);
+const kvHget = (key, field) => kvCmd(['HGET', key, field]);
 // Upstash returns hashes flattened: [field1, value1, field2, value2, …]. Returns the values.
 const kvHvals = async (key) => ((await kvCmd(['HGETALL', key])) || []).filter((_, i) => i % 2 === 1);
 
 const kvSetEx = (key, val, seconds) => kvCmd(['SET', key, val, 'EX', seconds]);
 const kvIncr = (key) => kvCmd(['INCR', key]);
+const kvExpire = (key, seconds) => kvCmd(['EXPIRE', key, seconds]);
 const kvRpush = (key, val) => kvCmd(['RPUSH', key, val]);
 const kvLlen = (key) => kvCmd(['LLEN', key]);
 const kvLrange = async (key, from, to) => (await kvCmd(['LRANGE', key, from, to])) || [];
@@ -58,4 +60,4 @@ async function kvLock(name) {
   }
 }
 
-module.exports = { kvAvailable, kvGet, kvSet, kvSetEx, kvDel, kvHset, kvHdel, kvHvals, kvIncr, kvRpush, kvLlen, kvLrange, kvLock };
+module.exports = { kvAvailable, kvGet, kvSet, kvSetEx, kvDel, kvHset, kvHdel, kvHget, kvHvals, kvIncr, kvExpire, kvRpush, kvLlen, kvLrange, kvLock };

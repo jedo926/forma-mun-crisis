@@ -55,7 +55,7 @@ api/
   release.js      Public release endpoint (checks the server clock)
   admin.js        Admin login + status + pre-release preview + publish (password checked here)
   committee.js    Caucus state, speakers list, saved delegates and public directives
-  crisis.js       Crisis Room: activity log and chair notes (admin only)
+  crisis.js       Crisis Room: chairs, delegate logins and the public projector feed
   site.js         Public page text (never holds scenario content)
   report.js       Chair report PDF, locked until release
   _lib/content.js Shared helpers + content health check (not deployed as a function)
@@ -104,8 +104,16 @@ The panel has one bar at the top with **PREVIEW**, **SAVE DRAFT** and **PUBLISH*
 - **Committee:** saves as you go, in three tabs.
   - **Run Caucus:** shows one stage at a time: set up, start, run, end. Add speakers by tapping saved delegates, typing a name, or pasting a list from Excel, WhatsApp or Word. A wrong press can be undone: **Speak Now** goes back to an earlier speaker, and **Resume Caucus** reopens an ended one.
   - **Delegates:** a saved list that lasts across caucuses, with attendance, times spoken and directives sent. Add it once by pasting or with **Import from Characters**, and press **New Session** at the start of each day. This list is private and never reaches the public page.
-  - **Directives:** read, search and delete directives. The delegate code is shown here.
-- **Crisis Room:** the whole session at a glance: the live caucus, attendance, directives, an activity feed showing who did what, and notes between chairs. Chairs share one login, so the names are what each chair typed, not proof of identity.
+  - **Old Directives:** appears only if public directives from before delegate logins exist. They stay public until deleted here.
+- **Crisis Room:** everything else a crisis needs, in one place. Chairs share one login, so names in the log are what each chair typed, not proof of identity.
+  - **Live:** the caucus, a separate deadline countdown, what needs attention, the activity feed and notes between chairs.
+  - **Motions:** propose, rule in or out of order, vote by placards or roll call, then set up the caucus in one click. Voters and rules freeze when a vote opens. A wrong result is corrected with a reason, and the first result stays on record.
+  - **Directives:** review what delegates send, with a checklist, version history, decisions and outcomes. Rejecting, asking for changes and holding all need a reason, which the delegate reads.
+  - **Crisis:** plan events chairs alone can see, then write updates for everyone, chosen factions, chosen delegates or chairs only. An update goes out only after someone approves it and someone presses SEND.
+  - **Messages:** private messages to a delegate, a faction or everyone, with read receipts.
+  - **People:** make login codes and print them as cards, set factions, and replace a lost code.
+  - **Log:** the full record, plus the final archive as a download or a printable page. The archive contains private material.
+  - **Settings:** session details, the projector banner and the rules. **The rules are starting values. Check them against your rules of procedure before the first session.**
 - **Site Status:** release state and countdown, content health check, and **Restore previous version** to undo a publish.
 - **More → All Content:** everything as forms. Use this to add or remove characters, factions, events and other items, and to change fighter looks.
 - **More → All Page Text:** all public text in one searchable list.
@@ -130,7 +138,9 @@ Publishing asks you to confirm if public text contains a scenario title or a cha
 
 Delegates see the live caucus, timers, speakers list and directives without logging in. Timers use the server's clock, so a wrong device clock doesn't matter. Open pages check for changes every 5 seconds during a caucus and every 15 seconds otherwise, and stop while the tab is hidden.
 
-Posting a directive needs the **delegate code**, which only stops strangers from posting. It's the `DELEGATE_CODE` environment variable. Chairs can see it in the admin Committee tab. To change it, update the variable on Vercel and redeploy. If the variable is removed, anyone can post.
+Delegates log in on this page with the personal code from their card, after release. They can then read private messages and write directives, which save by themselves and go to the chairs for review. Directives are no longer public. A session lasts 12 hours, and making a new code for someone logs them out.
+
+**Projector:** `/projector.html`, also linked from Crisis Room → Live. It needs no login and shows only public information: the caucus once started, public countdowns, public votes and posted updates. Open it on the room's screen and press FULL SCREEN.
 
 ## Deploy on Vercel
 
@@ -145,7 +155,7 @@ Posting a directive needs the **delegate code**, which only stops strangers from
 | `ADMIN_USERNAME` | admin login name (see the private READ-ME-FIRST) |
 | `ADMIN_PASSWORD` | admin password (see the private READ-ME-FIRST) |
 | `ADMIN_SESSION_SECRET` | long random string that signs admin sessions |
-| `DELEGATE_CODE` | code delegates enter to post directives |
+| `DELEGATE_CODE` | no longer used: delegates have personal codes |
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | added automatically when a KV store is connected (Project → Storage) |
 
 4. Redeploy so the variables take effect.
