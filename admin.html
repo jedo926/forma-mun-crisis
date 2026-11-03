@@ -60,10 +60,11 @@
           <button type="button" data-panel="edit">EDIT SITE</button>
           <button type="button" data-panel="updates">POST UPDATE</button>
           <button type="button" data-panel="committee">COMMITTEE</button>
-          <button type="button" data-panel="overview">STATUS</button>
+          <button type="button" data-panel="crisis">CRISIS ROOM</button>
+          <button type="button" data-panel="overview">SITE STATUS</button>
           <span class="side-label">MORE</span>
-          <button type="button" class="side-more" data-panel="content">ALL FIELDS</button>
-          <button type="button" class="side-more" data-panel="site">PAGE TEXT LIST</button>
+          <button type="button" class="side-more" data-panel="content">ALL CONTENT</button>
+          <button type="button" class="side-more" data-panel="site">ALL PAGE TEXT</button>
           <button type="button" class="side-more" data-panel="report">CHAIR REPORT</button>
           <div class="side-foot">
             <span class="side-session" data-a="session">SESSION</span>
@@ -92,7 +93,8 @@
           </section>
 
           <section data-panel-id="overview" hidden>
-            <h2 class="panel-title">STATUS</h2>
+            <h2 class="panel-title">SITE STATUS</h2>
+            <p class="vis-help">Check whether the site is released and healthy, or undo your last publish.</p>
             <div class="admin-grid">
               <div class="panel tile-stat"><span class="label">STATE</span><p class="big" data-a="state">…</p></div>
               <div class="panel tile-stat"><span class="label">COUNTDOWN</span><p class="big" data-a="countdown">…</p></div>
@@ -113,12 +115,13 @@
 
           <section data-panel-id="updates" hidden>
             <h2 class="panel-title">POST UPDATE</h2>
+            <p class="vis-help">Send delegates a crisis update. It goes out as soon as you post it, with no publishing.</p>
             <div data-updates-body></div>
           </section>
 
           <section data-panel-id="content" hidden>
-            <h2 class="panel-title">ALL FIELDS</h2>
-            <p class="muted">Everything as forms: add or remove characters, factions, events and more, and change fighter looks.</p>
+            <h2 class="panel-title">ALL CONTENT</h2>
+            <p class="vis-help">Everything as forms: add or remove characters, factions, events and more. Press PUBLISH when you're done.</p>
             <div class="panel admin-tool" data-admin-editor>
               <div class="editor-tabs" data-editor-tabs></div>
               <div class="editor-body" data-editor-body></div>
@@ -127,18 +130,26 @@
           </section>
 
           <section data-panel-id="site" hidden>
-            <h2 class="panel-title">PAGE TEXT LIST</h2>
+            <h2 class="panel-title">ALL PAGE TEXT</h2>
+            <p class="vis-help">Every piece of public page text in one list. Press PUBLISH when you're done.</p>
             <div class="panel" data-site-body></div>
           </section>
 
           <section data-panel-id="report" hidden>
             <h2 class="panel-title">CHAIR REPORT</h2>
+            <p class="vis-help">Upload the chair report PDF. It saves by itself, with no publishing.</p>
             <div class="panel" data-report-body></div>
+          </section>
+
+          <section data-panel-id="crisis" hidden>
+            <h2 class="panel-title">CRISIS ROOM</h2>
+            <p class="vis-help">See the whole session at a glance. Everything saves by itself, with no publishing.</p>
+            <div class="panel" data-crisis-body></div>
           </section>
 
           <section data-panel-id="committee" hidden>
             <h2 class="panel-title">COMMITTEE</h2>
-            <p class="muted">Runs live. Changes here save as you go and need no publishing.</p>
+            <p class="vis-help">Run the session live. Everything saves by itself, with no publishing.</p>
             <div class="panel" data-committee-body></div>
           </section>
         </div>
@@ -177,6 +188,13 @@
   <script src="js/admin/updates.js" defer></script>
   <script src="js/admin/site.js" defer></script>
   <script src="js/admin/committee.js" defer></script>
+  <script src="js/admin/committee-run.js" defer></script>
+  <script src="js/admin/committee-delegates.js" defer></script>
+  <script src="js/admin/crisis.js" defer></script>
+  <script src="js/admin/crisis-procedure.js" defer></script>
+  <script src="js/admin/crisis-directives.js" defer></script>
+  <script src="js/admin/crisis-ops.js" defer></script>
+  <script src="js/admin/crisis-people.js" defer></script>
   <script src="js/admin/report.js" defer></script>
   <script src="js/admin/admin.js" defer></script>
   <script src="js/main.js" defer></script>

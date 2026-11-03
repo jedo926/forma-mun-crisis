@@ -24,11 +24,6 @@
   const queueSection   = $('#queue-section');
   const speakersList   = $('#speakers-list');
   const directivesList = $('#directives-list');
-  const dirDelegation  = $('#dir-delegation');
-  const dirCode        = $('#dir-code');
-  const dirText        = $('#dir-text');
-  const dirMsg         = $('#dir-msg');
-  const dirSubmit      = $('#dir-submit');
 
   // ── Helpers ───────────────────────────────────────────────
   function pad2(n) { return String(Math.floor(n)).padStart(2, '0'); }
@@ -64,7 +59,6 @@
   function renderState() {
     if (!state) return;
     if (kvBanner) kvBanner.hidden = !!state.kvReady;
-    if (dirCode) dirCode.hidden = !state.codeRequired;
     renderCaucus();
     renderDirectives();
   }
@@ -148,7 +142,7 @@
   function renderDirectives() {
     const dirs = (state && state.directives) || [];
     if (!dirs.length) {
-      directivesList.innerHTML = '<div class="directive-empty">No directives yet. Be the first to submit one.</div>';
+      directivesList.innerHTML = '<div class="directive-empty">No public directives.</div>';
       return;
     }
     directivesList.innerHTML = '';
@@ -165,45 +159,6 @@
         '<div class="directive-text">' + escHtml(d.text) + '</div>';
       directivesList.append(card);
     });
-  }
-
-  // ── Submit directive ──────────────────────────────────────
-  dirSubmit.addEventListener('click', async () => {
-    const delegation = (dirDelegation.value || '').trim();
-    const text = (dirText.value || '').trim();
-    const code = (dirCode.value || '').trim();
-    if (!delegation) { showMsg('ENTER YOUR DELEGATION NAME', 'bad'); return; }
-    if (!text) { showMsg('WRITE YOUR DIRECTIVE FIRST', 'bad'); return; }
-    if (state && state.codeRequired && !code) { showMsg('ENTER THE DELEGATE CODE', 'bad'); return; }
-
-    dirSubmit.disabled = true;
-    showMsg('SUBMITTING…', '');
-
-    try {
-      const res = await fetch(endpoint + '?action=directive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ delegation, text, code })
-      });
-      const data = await res.json().catch(() => null);
-      if (res.ok && data && data.ok) {
-        dirText.value = '';          // keep delegation + code: delegates post several times
-        showMsg('✓ DIRECTIVE SUBMITTED', 'ok');
-        await fetchState();
-      } else {
-        const err = data && data.code;
-        showMsg(err === 'bad_code' ? 'WRONG DELEGATE CODE · ASK YOUR CHAIRS'
-          : err === 'kv_required' ? 'STORAGE NOT CONFIGURED YET' : 'SUBMISSION FAILED · TRY AGAIN', 'bad');
-      }
-    } catch (e) {
-      showMsg('NO CONNECTION TO SERVER', 'bad');
-    }
-    dirSubmit.disabled = false;
-  });
-
-  function showMsg(text, cls) {
-    dirMsg.textContent = text;
-    dirMsg.className = 'dir-msg' + (cls ? ' ' + cls : '');
   }
 
   function escHtml(s) {
@@ -223,6 +178,7 @@
 
   function initCommittee() {
     fetchState().then(schedulePoll);
+    if (F.Desk) F.Desk.init();
     document.addEventListener('visibilitychange', () => { if (!document.hidden) fetchState(); });
     setInterval(tickTimers, 1000);   // smooth countdown tick
   }

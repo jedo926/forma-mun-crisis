@@ -43,6 +43,7 @@
     const tab = window.open('', '_blank');
     const { token } = A;
     const res = await fetch('/api/report?t=' + Date.now(), { cache: 'no-store', headers: { Authorization: 'Bearer ' + token.call(A) } }).catch(() => null);
+    if (res && res.status === 401) { if (tab) tab.close(); A.logout('SESSION EXPIRED · LOG IN AGAIN'); return; }
     if (!res || !res.ok) { if (tab) tab.close(); toast('COULD NOT OPEN THE REPORT'); return; }
     const url = URL.createObjectURL(await res.blob());
     if (tab) tab.location.href = url;

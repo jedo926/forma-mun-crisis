@@ -69,20 +69,17 @@
       <ul id="speakers-list" class="speakers-list"></ul>
     </section>
 
+    <!-- DELEGATE DESK: filled in by js/pages/committee-desk.js -->
+    <section class="comm-section" data-desk>
+      <h2 class="comm-heading" data-edit="committee.delegate-desk">DELEGATE DESK</h2>
+      <div data-desk-body></div>
+    </section>
+
     <!-- PUBLIC DIRECTIVES FORUM -->
     <section class="comm-section">
       <h2 class="comm-heading" data-edit="committee.public-directives">PUBLIC DIRECTIVES</h2>
-      <div class="directive-form">
-        <input id="dir-delegation" type="text" class="input" placeholder="DELEGATION NAME" aria-label="Delegation name" maxlength="80" autocomplete="off">
-        <input id="dir-code" type="text" class="input" placeholder="DELEGATE CODE" aria-label="Delegate code from your chairs" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false">
-        <textarea id="dir-text" class="input dir-textarea" placeholder="Write your directive or statement here..." aria-label="Directive text" maxlength="2000"></textarea>
-        <div class="directive-form-footer">
-          <span id="dir-msg" class="dir-msg" aria-live="polite"></span>
-          <button id="dir-submit" type="button" class="btn mag">SUBMIT DIRECTIVE ▸</button>
-        </div>
-      </div>
       <div id="directives-list" class="directives-list" aria-live="polite">
-        <div class="directive-empty">No directives yet. Be the first to submit one.</div>
+        <div class="directive-empty">No public directives.</div>
       </div>
     </section>
   </main>
@@ -98,6 +95,7 @@
   <script src="js/ui/modal.js" defer></script>
   <script src="js/ui/fx.js" defer></script>
   <script src="js/ui/chrome.js" defer></script>
+  <script src="js/pages/committee-desk.js" defer></script>
   <script src="js/pages/committee.js" defer></script>
   <script src="js/main.js" defer></script>
 </body>

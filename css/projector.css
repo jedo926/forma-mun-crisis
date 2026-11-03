@@ -1,0 +1,33 @@
+/* FORMA MUN · Crisis Division — Projector. Readable from the back of a room. */
+html, body { height: 100%; }
+body { background: #05060d; }
+.proj { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); grid-template-rows: auto auto 1fr; gap: 2vh 3vw; min-height: 100vh; padding: 3vh 3vw; color: #fff; box-sizing: border-box; }
+.proj p { margin: 0; }
+.proj-top { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 2vw; align-items: flex-start; }
+.proj-name { font-family: var(--px); font-size: clamp(11px, 1.3vw, 22px); line-height: 1.6; color: var(--cyan); }
+.proj-session { margin-top: 8px !important; font-size: clamp(16px, 1.8vw, 30px); color: #cfd3ee; }
+.proj-tools { display: flex; align-items: center; gap: 14px; }
+.proj-link { font-family: var(--px); font-size: 11px; color: #00ff88; }
+.proj-link.bad { color: var(--red); }
+.proj-full { opacity: .5; }
+.proj-full:hover { opacity: 1; }
+:fullscreen .proj-full { display: none; }
+.proj-banner { grid-column: 1 / -1; padding: 1.4vh 1.5vw; background: var(--magenta); color: #05060d; font-family: var(--px); font-size: clamp(12px, 1.5vw, 26px); line-height: 1.6; }
+.proj-banner[hidden] { display: none; }
+.proj-stage { display: flex; flex-direction: column; justify-content: center; gap: 2.5vh; min-width: 0; }
+.proj-kicker { font-family: var(--px); font-size: clamp(13px, 1.9vw, 34px); line-height: 1.5; color: var(--cyan); }
+.proj-topic { font-size: clamp(24px, 3.4vw, 60px); line-height: 1.15; overflow-wrap: anywhere; }
+.proj-speaker { font-family: var(--px); font-size: clamp(20px, 3.8vw, 72px); line-height: 1.3; color: #00ff88; overflow-wrap: anywhere; }
+.proj-speaker.no { color: var(--red); }
+.proj-clock { font-family: var(--px); font-size: clamp(44px, 11vw, 220px); line-height: 1.1; color: #fff; }
+.proj-small { font-size: clamp(18px, 2.2vw, 40px); line-height: 1.25; color: #cfd3ee; overflow-wrap: anywhere; }
+.proj-mid { font-family: var(--px); font-size: clamp(22px, 3.6vw, 66px); line-height: 1.2; }
+.proj .warn { color: #ffd166; }
+.proj .up { color: var(--red); }
+.proj-side { display: flex; flex-direction: column; gap: 1.6vh; min-width: 0; overflow: hidden; }
+.proj-card { padding: 1.6vh 1.2vw; background: #0d1020; border-left: 8px solid var(--cyan); }
+.proj-card.critical { border-left-color: var(--red); }
+.proj-card.high { border-left-color: var(--magenta); }
+.proj-card-title { font-size: clamp(18px, 2vw, 36px); line-height: 1.2; overflow-wrap: anywhere; }
+.proj-card-text { margin-top: 6px !important; font-size: clamp(14px, 1.4vw, 26px); line-height: 1.25; color: #cfd3ee; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 800px) { .proj { grid-template-columns: minmax(0, 1fr); } .proj-top { grid-column: 1; } .proj-banner { grid-column: 1; } }

@@ -98,3 +98,21 @@ Run on 25 Oct 2026 with Node 22 and headless Chromium (Playwright), against a lo
 
 - **Unit:** 61/61 passed. Added: visitors get nothing before release, admins get the exact bytes, a forged token is refused, the link only appears after release and is never written into the published document, non-PDF files are refused, and replacing or deleting the report removes its pieces.
 - **Browser, local server with an in-memory KV:** 47/47 passed. Added: upload and remove in the panel, and every form field has an id or name.
+
+## Committee rebuild and easier admin (3 Nov 2026)
+
+- **Unit:** 81/81 passed (`npm run test:unit`). Added: lists of speakers, duplicates, the queue limit, moving, SPEAK NOW and its undo, a speaker changed during a pause, added time after zero, reopening an ended caucus, speakers saved before ids existed, the delegate list, spoken counts, and the public response hiding an idle caucus and the delegate list.
+- **Browser, local server with an in-memory KV:** 64/64 passed (`npm run test:local`). Added: pasting a messy list, a full caucus from start to end, undoing a wrong NEXT, TIME UP, roll call and renaming, tap to add, 12 fast adds in a row, a second tab picking up changes, typing surviving a refresh, and an expired session going to the login screen.
+- **Layout:** every admin section checked at 1280px and 390px with no sideways scrolling.
+- **Not checked:** two chairs pressing buttons at the same moment on the live site. Changes to the caucus are in order within one browser, but two browsers can still overwrite each other if they press within a fraction of a second.
+
+## Crisis Room, all phases (3 Nov 2026)
+
+- **Unit:** 127/127 passed (`npm run test:unit`). Covers vote sums, frozen voters and rules, quorum, corrections, delegate logins, every chair action refusing a delegate session, one delegate never reaching another's records, drafts staying private, unchangeable sent versions, two chairs reviewing at once, updates needing approval and going out once, faction and character delivery, read receipts, and the projector showing nothing private.
+- **Browser, local server with an in-memory KV:** 71/71 passed (`npm run test:local`).
+- **Full rehearsal:** `npm run test:rehearsal` runs a chair, two delegates (one on a phone) and the projector at once, from delegate setup to the final archive. Passed three times in a row.
+- **Layout:** every Crisis Room tab, the delegate desk and the projector checked by eye and for sideways scrolling at 1280px and 390px, and the projector at 1920px.
+- **Bugs these tests found, now fixed:** a second chair's review silently replacing the first; a late redraw swallowing the TELL THE DELEGATE click; renaming a threshold blocking the rules from saving; a connection warning wiping typed text.
+- **Not checked:** the lock, log and login on real Upstash, because previews share production data. Check on a temporary separate Vercel project before relying on them.
+- **Not checked:** real phones, screen readers, printing the code cards on paper, and 30 delegates at once. The rehearsal used two delegates.
+- **Upstash command limit:** not confirmed. Neither the Vercel MCP nor the CLI could read the plan, so check it in the Upstash dashboard before the conference.

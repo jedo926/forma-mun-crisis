@@ -55,10 +55,27 @@ http.createServer((req, res) => {
     const [cmd, key, ...rest] = JSON.parse(body || '[]');
     let result = null;
     if (cmd === 'GET') result = store.has(key) ? store.get(key) : null;
-    else if (cmd === 'SET') { store.set(key, rest[0]); result = 'OK'; }
+    else if (cmd === 'SET') {
+      if (rest[1] === 'NX' && store.has(key)) result = null;
+      else {
+        store.set(key, rest[0]);
+        result = 'OK';
+        if (rest[1] === 'NX' && rest[2] === 'PX') setTimeout(() => store.delete(key), rest[3]).unref();
+      }
+    }
+    else if (cmd === 'INCR') { const n = Number(store.get(key) || 0) + 1; store.set(key, String(n)); result = n; }
+    else if (cmd === 'RPUSH') { const l = store.get(key) || []; l.push(rest[0]); store.set(key, l); result = l.length; }
+    else if (cmd === 'LLEN') result = (store.get(key) || []).length;
+    else if (cmd === 'LRANGE') {
+      const l = store.get(key) || [];
+      const at = (i) => (i < 0 ? Math.max(0, l.length + i) : i);
+      result = l.slice(at(rest[0]), rest[1] === -1 ? undefined : at(rest[1]) + 1);
+    }
     else if (cmd === 'DEL') result = store.delete(key) ? 1 : 0;
     else if (cmd === 'HSET') { const h = store.get(key) || new Map(); h.set(rest[0], rest[1]); store.set(key, h); result = 1; }
     else if (cmd === 'HDEL') { const h = store.get(key); result = h && h.delete(rest[0]) ? 1 : 0; }
+    else if (cmd === 'HGET') { const h = store.get(key); result = h && h.has(rest[0]) ? h.get(rest[0]) : null; }
+    else if (cmd === 'EXPIRE') result = 1;
     else if (cmd === 'HGETALL') { const h = store.get(key); result = h ? [...h.entries()].flat() : []; }
     res.setHeader('content-type', 'application/json');
     res.end(JSON.stringify({ result }));
@@ -78,10 +95,10 @@ function serveStatic(root, req, res) {
 }
 
 const handlers = {};
-for (const name of ['release', 'admin', 'committee', 'site', 'report']) handlers[name] = require(path.join(ROOT, 'api', name + '.js'));
+for (const name of ['release', 'admin', 'committee', 'crisis', 'site', 'report']) handlers[name] = require(path.join(ROOT, 'api', name + '.js'));
 
 http.createServer(async (req, res) => {
-  const match = new URL(req.url, 'http://x').pathname.match(/^\/api\/(release|admin|committee|site|report)$/);
+  const match = new URL(req.url, 'http://x').pathname.match(/^\/api\/(release|admin|committee|crisis|site|report)$/);
   if (!match) { serveStatic(ROOT, req, res); return; }
   // Vercel parses JSON bodies before the handler runs; do the same.
   if (req.method === 'POST') {

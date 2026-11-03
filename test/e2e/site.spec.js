@@ -101,35 +101,11 @@ test.describe('Committee page', () => {
     await expect(page.locator('#caucus-empty')).toBeVisible();
   });
 
-  test('directive form is present', async ({ page }) => {
+  test('the delegate desk asks for a login code', async ({ page }) => {
     await page.goto('/committee.html');
-    await expect(page.locator('#dir-delegation')).toBeVisible();
-    await expect(page.locator('#dir-text')).toBeVisible();
-    await expect(page.locator('#dir-submit')).toBeVisible();
-  });
-
-  test('submitting without delegation name shows error', async ({ page }) => {
-    await page.goto('/committee.html');
-    await page.locator('#dir-text').fill('Test directive text');
-    await page.locator('#dir-submit').click();
-    await expect(page.locator('#dir-msg')).toHaveText(/ENTER YOUR DELEGATION NAME/i);
-  });
-
-  test('submitting without text shows error', async ({ page }) => {
-    await page.goto('/committee.html');
-    await page.locator('#dir-delegation').fill('Germany');
-    await page.locator('#dir-submit').click();
-    await expect(page.locator('#dir-msg')).toHaveText(/WRITE YOUR DIRECTIVE/i);
-  });
-
-  test('submitting with both fields submits directive successfully', async ({ page }) => {
-    test.skip(!ALLOW_WRITES, 'posts a real directive');
-    await page.goto('/committee.html');
-    await page.locator('#dir-delegation').fill('Germany');
-    await page.locator('#dir-text').fill('We propose immediate ceasefire negotiations.');
-    await page.locator('#dir-code').fill('local-code');
-    await page.locator('#dir-submit').click();
-    await expect(page.locator('#dir-msg')).toHaveText(/DIRECTIVE SUBMITTED/i, { timeout: 10_000 });
+    await expect(page.locator('#desk-code')).toBeVisible();
+    await page.locator('#desk-login').click();
+    await expect(page.locator('[data-desk-msg]')).toHaveText('ENTER YOUR CODE');
   });
 
   test('committee API returns valid JSON with idle caucus', async ({ request }) => {
@@ -254,6 +230,398 @@ test.describe('Admin — content editor', () => {
     await adminLogin(page);
     await openPanel(page, 'site');
     await expect(page.locator('[data-site-body] .ed-fold')).toHaveCount(11);
+  });
+});
+
+test.describe('Admin — running a committee', () => {
+  test.skip(!ADMIN_PASS, 'set E2E_ADMIN_USER and E2E_ADMIN_PASS');
+  test.skip(!process.env.E2E_LOCAL, 'changes committee data, so it only runs on the local server');
+  test.describe.configure({ mode: 'serial' });
+
+  const body = (page) => page.locator('[data-committee-body]');
+  async function openCommittee(page) {
+    await adminLogin(page);
+    await openPanel(page, 'committee');
+    await expect(page.locator('[data-comm-tab="run"]')).toBeVisible();
+  }
+  /** Starts from a clean moderated caucus, whatever an earlier test left behind. */
+  async function freshCaucus(page) {
+    page.on('dialog', (d) => d.accept());
+    await openCommittee(page);
+    await page.locator('[data-comm-tab="run"]').click();
+    await page.evaluate(() => window.FORMA.Admin.comm.send('control', { op: 'clear' }));
+    await page.evaluate(() => window.FORMA.Admin.comm.pull(true));
+    await page.getByRole('button', { name: 'SET UP CAUCUS' }).click();
+    await expect(page.locator('[data-comm-start]')).toBeVisible();
+  }
+  const pasteSpeakers = async (page, text) => {
+    await page.locator('[data-paste-open]').click();
+    await page.locator('[data-paste-box]').fill(text);
+    await page.getByRole('button', { name: 'ADD TO QUEUE' }).click();
+  };
+  const rows = (page) => page.locator('[data-comm-queue] [data-speaker-row]');
+
+  test('the draft buttons are hidden, because this section saves itself', async ({ page }) => {
+    await openCommittee(page);
+    await expect(page.locator('[data-editor-publish]')).toBeHidden();
+    await openPanel(page, 'content');
+    await expect(page.locator('[data-editor-publish]')).toBeVisible();
+  });
+
+  test('a pasted list is cleaned up, counted, and duplicates are skipped', async ({ page }) => {
+    await freshCaucus(page);
+    await page.locator('[data-paste-open]').click();
+    await page.locator('[data-paste-box]').fill('1. Germany\n2) France\n• Japan\n- Brazil\n\nGermany\n7\tKenya\tNairobi\nItaly\r\nSpain\nChile\nPeru');
+    await expect(page.locator('[data-paste-count]')).toHaveText('9 NEW');
+    await page.getByRole('button', { name: 'ADD TO QUEUE' }).click();
+    await expect(rows(page)).toHaveCount(9);
+    await expect(rows(page).first()).toContainText('1. Germany');
+    await expect(rows(page).nth(4)).toContainText('5. Kenya');
+    await page.locator('[data-paste-open]').click();
+    await page.locator('[data-paste-box]').fill('Germany, Canada; Egypt');
+    await expect(page.locator('[data-paste-count]')).toHaveText('2 NEW · 1 ALREADY THERE');
+    await page.getByRole('button', { name: 'ADD TO QUEUE' }).click();
+    await expect(rows(page)).toHaveCount(11);
+    await expect(body(page)).toContainText('SPEAKERS QUEUE (11)');
+  });
+
+  test('a full caucus runs from start to end, and a wrong NEXT can be undone', async ({ page }) => {
+    await freshCaucus(page);
+    await pasteSpeakers(page, 'Alpha\nBravo\nCharlie');
+    await expect(rows(page)).toHaveCount(3);
+    await page.locator('[data-comm-start]').click();
+    await expect(page.locator('[data-comm-speaker-clock]')).toHaveText(/^0[01]:\d\d$/);
+    await expect(rows(page).first().locator('.speaker-badge')).toHaveText('SPEAKING');
+    await expect(page.locator('[data-comm-up-next]')).toHaveText('Up next: Bravo');
+
+    await page.locator('[data-comm-main]').click();                       // the wrong press
+    await expect(rows(page).nth(1).locator('.speaker-badge')).toHaveText('SPEAKING');
+    await page.locator('[data-speak-now="Alpha"]').click();               // back to Alpha
+    await expect(rows(page).first().locator('.speaker-badge')).toHaveText('SPEAKING');
+    await expect(rows(page).nth(1).locator('.speaker-badge')).toHaveText('WAITING');
+
+    await page.getByRole('button', { name: 'PAUSE' }).click();
+    await expect(body(page)).toContainText('PAUSED');
+    await expect(page.locator('[data-comm-main]')).toHaveText(/RESUME/);
+    await page.locator('[data-comm-main]').click();
+
+    await page.locator('[data-comm-main]').click();
+    await page.locator('[data-comm-main]').click();
+    await expect(rows(page).nth(2).locator('.speaker-badge')).toHaveText('SPEAKING');
+    await expect(page.locator('[data-comm-main]')).toHaveText(/FINISH SPEAKER/);
+    await page.locator('[data-comm-main]').click();
+    await expect(page.locator('[data-comm-main]')).toHaveCount(0);
+
+    await page.locator('[data-comm-end]').click();
+    await expect(page.locator('[data-comm-summary]')).toContainText('3 speakers heard');
+    await page.locator('[data-comm-reopen]').click();                     // a mistaken end
+    await expect(page.locator('[data-comm-clock]')).toBeVisible();
+    await page.locator('[data-comm-end]').click();
+    await page.locator('[data-comm-new]').click();
+    await expect(page.getByRole('button', { name: 'SET UP CAUCUS' })).toBeVisible();
+  });
+
+  test('time running out is shown, and more time can be added', async ({ page }) => {
+    await freshCaucus(page);
+    await pasteSpeakers(page, 'Solo');
+    await page.locator('[data-comm-start]').click();
+    await expect(page.locator('[data-comm-speaker-clock]')).toBeVisible();
+    await page.evaluate(() => {                                            // jump the clock a long way forward
+      const A = window.FORMA.Admin;
+      A.clockOffset += 3600000;
+    });
+    await expect(page.locator('[data-comm-speaker-clock]')).toHaveText('TIME UP');
+    await expect(page.locator('[data-comm-clock]')).toHaveText('TIME UP');
+    await page.evaluate(() => { window.FORMA.Admin.clockOffset -= 3600000; });
+    await page.getByRole('button', { name: '+30 SEC SPEAKER' }).click();
+    await expect(page.locator('[data-comm-speaker-clock]')).toHaveText(/^01:[0-3]\d$/);
+  });
+
+  test('delegates: paste, roll call, rename, tap to add', async ({ page }) => {
+    await freshCaucus(page);
+    await page.locator('[data-comm-tab="delegates"]').click();
+    await page.locator('[data-add-delegates]').click();
+    await page.locator('[data-paste-box]').fill('Oman, Qatar, Kuwait');
+    await page.getByRole('button', { name: 'SAVE DELEGATES' }).click();
+    await expect(page.locator('[data-delegate-row="Oman"]')).toBeVisible();
+    await expect(page.locator('[data-comm-present]')).toContainText(/\d+ \/ \d+/);
+
+    await page.locator('[data-toggle="Qatar"]').click();
+    await expect(page.locator('[data-toggle="Qatar"]')).toHaveText('ABSENT');
+
+    await page.locator('[data-rename="Kuwait"]').click();
+    const box = page.locator('[data-delegate-row="Kuwait"] input');
+    await box.fill('State of Kuwait');
+    await box.press('Enter');
+    await expect(page.locator('[data-delegate-row="State of Kuwait"]')).toBeVisible();
+
+    await page.locator('[data-comm-tab="run"]').click();
+    await page.locator('[data-add-speaker="Oman"]').click();
+    await expect(page.locator('[data-speaker-row="Oman"]')).toBeVisible();
+    await expect(page.locator('[data-add-speaker="Oman"]')).toBeDisabled();
+
+    await page.locator('[data-add-all-present]').click();
+    await expect(page.locator('[data-speaker-row="State of Kuwait"]')).toBeVisible();
+    await expect(page.locator('[data-speaker-row="Qatar"]')).toHaveCount(0);   // absent
+
+    await page.locator('[data-comm-search]').fill('qat');
+    await page.locator('[data-comm-search]').press('Enter');
+    await expect(page.locator('[data-speaker-row="Qatar"]')).toBeVisible();
+    await expect(page.locator('[data-comm-search]')).toBeFocused();
+
+    await page.locator('[data-comm-start]').click();                       // Oman is first
+    await expect(page.locator('[data-comm-clock]')).toBeVisible();
+    await page.locator('[data-comm-tab="delegates"]').click();
+    await expect(page.locator('[data-delegate-row="Oman"]')).toContainText('SPOKE 1');
+
+    await page.evaluate(async () => {                                      // clean up for reruns
+      const C = window.FORMA.Admin.comm;
+      for (const d of C.delegates.slice()) await C.send('delegate', { op: 'remove', id: d.id });
+    });
+  });
+
+  test('fast tapping loses nothing', async ({ page }) => {
+    await freshCaucus(page);
+    await page.evaluate(() => {
+      const C = window.FORMA.Admin.comm;
+      for (let i = 0; i < 12; i++) C.addSpeakers(['Fast ' + i]);
+    });
+    await expect(rows(page)).toHaveCount(12);
+  });
+
+  test('a second tab picks up changes, and typing survives the refresh', async ({ page, context }) => {
+    await freshCaucus(page);
+    const token = await page.evaluate(() => sessionStorage.getItem('forma:adminToken'));
+    const other = await context.newPage();
+    await other.addInitScript((t) => { sessionStorage.setItem('forma:adminToken', t); sessionStorage.setItem('forma:adminPanel', '"committee"'); }, token);
+    await other.goto('/admin.html');
+    await expect(other.locator('[data-comm-start]')).toBeVisible();
+    const search = other.locator('[data-comm-search]');
+    await search.fill('half-typed');
+    await search.focus();
+    await page.evaluate(() => window.FORMA.Admin.comm.addSpeakers(['From first tab']));
+    await expect(rows(page)).toHaveCount(1);
+    await other.evaluate(() => window.FORMA.Admin.comm.pull());
+    await expect(search).toHaveValue('half-typed');                        // not redrawn while typing
+    await expect(other.locator('[data-speaker-row]')).toHaveCount(0);
+    await search.fill('');
+    await search.blur();
+    await other.evaluate(() => window.FORMA.Admin.comm.pull());
+    await expect(other.locator('[data-speaker-row="From first tab"]')).toBeVisible();
+    await other.close();
+  });
+
+  test('an expired session goes to the login screen', async ({ page }) => {
+    await freshCaucus(page);
+    await page.evaluate(() => sessionStorage.setItem('forma:adminToken', JSON.stringify('not-a-real-token')));
+    await page.evaluate(() => window.FORMA.Admin.comm.addSpeakers(['Nobody']));
+    await expect(page.locator('[data-admin-login]')).toBeVisible();
+    await expect(page.locator('[data-login-msg]')).toHaveText(/SESSION EXPIRED/);
+  });
+
+  test('old public directives can be found and deleted only after confirming', async ({ page, request }) => {
+    const old = { id: 'dir_old', delegation: 'Testland', text: 'Findable directive', time: new Date().toISOString() };
+    await request.post('http://127.0.0.1:4803/', { data: ['HSET', 'crisis:directives:v2', old.id, JSON.stringify(old)] });
+    await openCommittee(page);
+    await page.locator('[data-comm-tab="directives"]').click();
+    const card = body(page).locator('.comm-dir-card', { hasText: 'Findable directive' });
+    await expect(card).toBeVisible();
+    await page.once('dialog', (d) => d.dismiss());
+    await card.locator('.ed-del').click();
+    await expect(card).toBeVisible();
+    await page.once('dialog', (d) => d.accept());
+    await card.locator('.ed-del').click();
+    await expect(card).toHaveCount(0);
+  });
+});
+
+test.describe('Admin — Crisis Room', () => {
+  test.skip(!ADMIN_PASS, 'set E2E_ADMIN_USER and E2E_ADMIN_PASS');
+  test.skip(!process.env.E2E_LOCAL, 'changes committee data, so it only runs on the local server');
+  test.describe.configure({ mode: 'serial' });
+
+  const body = (page) => page.locator('[data-crisis-body]');
+  async function openRoom(page, name = 'Sara') {
+    await adminLogin(page);
+    await openPanel(page, 'crisis');
+    await page.locator('[data-chair-name]').fill(name);
+    await page.locator('[data-chair-save]').click();
+    await expect(page.locator('[data-crisis-tab="live"]')).toBeVisible();
+  }
+
+  test('asks who is using it, and the draft buttons stay hidden', async ({ page }) => {
+    await adminLogin(page);
+    await openPanel(page, 'crisis');
+    await expect(body(page)).toContainText('WHO IS USING THIS?');
+    await page.locator('[data-chair-save]').click();
+    await expect(page.locator('[data-crisis-tab="live"]')).toHaveCount(0);       // a name is required
+    await page.locator('[data-chair-name]').fill('Sara');
+    await page.locator('[data-chair-name]').press('Enter');
+    await expect(body(page)).toContainText('Using this as Sara');
+    await expect(page.locator('[data-editor-publish]')).toBeHidden();
+    await expect(page.locator('[data-a="preview"]')).toBeHidden();
+  });
+
+  test('a chair note reaches the feed with the chair name, and only once', async ({ page }) => {
+    await openRoom(page);
+    const text = 'Note ' + Date.now();
+    await page.locator('[data-crisis-note]').fill(text);
+    await page.locator('[data-crisis-note-add]').dblclick();
+    const row = page.locator('[data-crisis-feed] li', { hasText: text });
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText('Sara');
+    await expect(page.locator('[data-crisis-note]')).toHaveValue('');
+  });
+
+  test('a caucus run from the Committee tab shows here under the right name', async ({ page }) => {
+    page.on('dialog', (d) => d.accept());
+    await openRoom(page, 'Omar');
+    await page.evaluate(() => window.FORMA.Admin.comm.send('control', { op: 'clear' }));
+    await page.locator('[data-crisis-open-committee]').click();
+    await expect(page.locator('[data-panel-id="committee"]')).toBeVisible();
+    await page.locator('[data-comm-tab="run"]').click();
+    await page.getByRole('button', { name: 'SET UP CAUCUS' }).click();
+    await page.locator('[data-comm-start]').click();
+    await expect(page.locator('[data-comm-clock]')).toBeVisible();
+    await openPanel(page, 'crisis');
+    await expect(page.locator('[data-crisis-caucus]')).toHaveText('MODERATED CAUCUS LIVE');
+    await expect(page.locator('[data-crisis-clock]')).toHaveText(/^\d\d:\d\d$/);
+    const row = page.locator('[data-crisis-feed] li', { hasText: 'Caucus started' }).first();
+    await expect(row).toContainText('Omar');
+    await page.evaluate(() => window.FORMA.Admin.comm.send('control', { op: 'stop' }));
+  });
+
+  test('a second chair sees changes without refreshing, and typing is kept', async ({ page, context }) => {
+    await openRoom(page, 'Sara');
+    const token = await page.evaluate(() => sessionStorage.getItem('forma:adminToken'));
+    const other = await context.newPage();
+    await other.addInitScript((t) => {
+      sessionStorage.setItem('forma:adminToken', t);
+      sessionStorage.setItem('forma:adminPanel', '"crisis"');
+      sessionStorage.setItem('forma:chairName', '"Omar"');
+    }, token);
+    await other.goto('/admin.html');
+    await expect(other.locator('[data-crisis-feed]')).toBeVisible();
+    await other.locator('[data-crisis-note]').fill('half-typed');
+    const text = 'From Sara ' + Date.now();
+    await page.locator('[data-crisis-note]').fill(text);
+    await page.locator('[data-crisis-note-add]').click();
+    await expect(other.locator('[data-crisis-note]')).toHaveValue('half-typed');
+    await other.locator('[data-crisis-note]').fill('');
+    await other.locator('[data-crisis-note]').blur();
+    await expect(other.locator('[data-crisis-feed] li', { hasText: text })).toBeVisible({ timeout: 12_000 });
+    await other.close();
+  });
+
+  test('the full log opens and pages back', async ({ page }) => {
+    await openRoom(page);
+    await page.evaluate(async () => {
+      const R = window.FORMA.Admin.crisis;
+      for (let i = 0; i < 55; i++) await R.send('note', { text: 'Log filler ' + i });
+    });
+    await page.locator('[data-crisis-tab="log"]').click();
+    await expect(page.locator('[data-crisis-log] li')).toHaveCount(50);
+    await page.locator('[data-crisis-more]').click();
+    await expect(page.locator('[data-crisis-log] li').nth(50)).toBeVisible();
+    await page.locator('[data-crisis-tab="live"]').click();
+  });
+
+  test('losing the connection is shown, not hidden', async ({ page, context }) => {
+    await openRoom(page);
+    await context.route('**/api/crisis**', (route) => route.abort());
+    await expect(page.locator('[data-crisis-offline]')).toBeVisible({ timeout: 12_000 });
+    await context.unroute('**/api/crisis**');
+    await expect(page.locator('[data-crisis-offline]')).toHaveCount(0, { timeout: 12_000 });
+  });
+});
+
+test.describe('Crisis Room — a full session', () => {
+  test.skip(!ADMIN_PASS, 'set E2E_ADMIN_USER and E2E_ADMIN_PASS');
+  test.skip(!process.env.E2E_LOCAL, 'changes committee data, so it only runs on the local server');
+  test.describe.configure({ mode: 'serial' });
+
+  const send = (page, action, body) => page.evaluate(([a, b]) => window.FORMA.Admin.crisis.send(a, b), [action, body]);
+  async function chair(page) {
+    page.on('dialog', (d) => d.accept());
+    await adminLogin(page);
+    await openPanel(page, 'crisis');
+    await page.locator('[data-chair-name]').fill('Sara');
+    await page.locator('[data-chair-save]').click();
+    await expect(page.locator('[data-crisis-tab="motions"]')).toBeVisible();
+  }
+  const tab = (page, name) => page.locator(`[data-crisis-tab="${name}"]`).click();
+  /** Delegates log in only after release, so this waits for the fake store's rehearsal switch. */
+  async function logIn(page, code) {
+    await page.goto('/committee.html');
+    await page.locator('#desk-code').fill(code);
+    await page.locator('#desk-login').click();
+  }
+  const run = Date.now().toString(36);
+  const names = [`Ada ${run}`, `Bo ${run}`, `Cy ${run}`];
+  let codes = {};
+
+  test('chairs add delegates, make codes and link factions', async ({ page }) => {
+    await chair(page);
+    await page.evaluate(async (list) => {
+      const C = window.FORMA.Admin.comm;
+      await C.send('control', { op: 'clear' });
+      for (const d of (await C.send('delegate', { op: 'all-present' })).delegates || []) await C.send('delegate', { op: 'remove', id: d.id });
+      await C.send('delegate', { op: 'add', names: list });
+    }, names);
+    await page.evaluate(() => window.FORMA.Admin.crisis.pull());
+    await tab(page, 'people');
+    await page.locator('[data-codes-make]').click();
+    await expect(page.locator('[data-codes-fresh]')).toBeVisible();
+    for (const name of names) codes[name] = (await page.locator(`[data-code="${name}"] .comm-code`).textContent()).trim();
+    expect(Object.values(codes).every((c) => /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(c))).toBe(true);
+    const ids = await page.evaluate(() => window.FORMA.Admin.crisis.state.people);
+    for (const p of ids) await send(page, 'person-set', { id: p.id, faction: p.name.startsWith('Ada') ? 'Red Team' : 'Blue Team', character: '' });
+    await page.reload();
+    await tab(page, 'people');
+    await expect(page.locator(`[data-person="${names[0]}"]`)).toContainText('HAS CODE');
+  });
+
+  test('a motion goes from proposal to vote to a caucus on the Committee tab', async ({ page }) => {
+    await chair(page);
+    await tab(page, 'motions');
+    await page.locator('[data-motion-proposer]').fill(names[0]);
+    await page.locator('[data-motion-topic]').fill('Harbour talks');
+    await page.locator('[data-motion-add]').click();
+    const row = page.locator('[data-motion]', { hasText: 'Harbour talks' }).first();
+    await row.locator('[data-motion-in-order]').click();
+    await row.locator('[data-motion-vote]').click();
+    await expect(page.locator('[data-vote-open]')).toContainText('3 voters');
+    await page.locator('[data-vote-count="for"]').fill('2');
+    await page.locator('[data-vote-count="against"]').fill('1');
+    await page.locator('[data-vote-close]').click();
+    await expect(page.locator('[data-vote]').first()).toContainText('PASSED');
+    await page.locator('[data-motion]', { hasText: 'Harbour talks' }).first().locator('[data-motion-carry]').click();
+    await expect(page.locator('[data-panel-id="committee"]')).toBeVisible();
+    await expect(page.locator('[data-comm-start]')).toBeVisible();
+    await expect(page.locator('[data-committee-body]')).toContainText('Harbour talks');
+  });
+
+  test('before release a delegate code is refused', async ({ page }) => {
+    test.skip(!codes[names[0]], 'needs the codes from the first test');
+    await logIn(page, codes[names[0]]);
+    await expect(page.locator('[data-desk-msg]')).toHaveText('LOGIN OPENS AT RELEASE');
+  });
+
+  test('the projector shows only public information', async ({ page, context }) => {
+    await chair(page);
+    await page.evaluate(() => window.FORMA.Admin.crisis.send('note', { text: 'PRIVATE CHAIR NOTE' }));
+    await send(page, 'session-set', { number: 2, phase: 'Formal debate', banner: 'Welcome back' });
+    await page.evaluate(() => window.FORMA.Admin.comm.send('control', { op: 'start' }));
+    const screen = await context.newPage();
+    await screen.goto('/projector.html');
+    await expect(screen.locator('[data-proj-session]')).toContainText('SESSION 2');
+    await expect(screen.locator('[data-proj-banner]')).toHaveText('Welcome back');
+    await expect(screen.locator('[data-proj-clock]')).toHaveText(/^\d\d:\d\d$/);
+    await expect(screen.locator('main')).toContainText('Harbour talks');
+    await expect(screen.locator('main')).not.toContainText('PRIVATE CHAIR NOTE');
+    await expect(screen.locator('[data-proj-link]')).toHaveText('LIVE');
+    await page.evaluate(() => window.FORMA.Admin.comm.send('control', { op: 'stop' }));
+    await screen.close();
   });
 });
 

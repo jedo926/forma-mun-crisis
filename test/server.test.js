@@ -391,17 +391,6 @@ describe('committee handler — public GET and directive submission', () => {
     assert.strictEqual(r.json.kvReady, false);
   });
 
-  test('POST directive returns 503 when KV not configured', async () => {
-    const r = await call({
-      method: 'POST',
-      url: '/api/committee?action=directive',
-      headers: { 'content-type': 'application/json' },
-      body: { delegation: 'Germany', text: 'Test directive' }
-    });
-    assert.strictEqual(r.statusCode, 503);
-    assert.strictEqual(r.json.code, 'kv_required');
-  });
-
   test('POST caucus without token returns 401', async () => {
     const r = await call({
       method: 'POST',
@@ -430,9 +419,20 @@ describe('committee handler — with KV', () => {
       const hash = kv.get(key) || new Map();
       let result = null;
       if (cmd === 'GET') result = kv.has(key) ? kv.get(key) : null;
-      if (cmd === 'SET') { kv.set(key, a); result = 'OK'; }
+      if (cmd === 'SET') { if (b !== 'NX' || !kv.has(key)) { kv.set(key, a); result = 'OK'; } }
+      if (cmd === 'DEL') result = kv.delete(key) ? 1 : 0;
+      if (cmd === 'INCR') { result = Number(kv.get(key) || 0) + 1; kv.set(key, String(result)); }
+      if (cmd === 'RPUSH') { const l = kv.get(key) || []; l.push(a); kv.set(key, l); result = l.length; }
+      if (cmd === 'LLEN') result = (kv.get(key) || []).length;
+      if (cmd === 'LRANGE') {
+        const l = kv.get(key) || [];
+        const at = (i) => (i < 0 ? Math.max(0, l.length + i) : i);
+        result = l.slice(at(a), b === -1 ? undefined : at(b) + 1);
+      }
       if (cmd === 'HSET') { hash.set(a, b); kv.set(key, hash); result = 1; }
       if (cmd === 'HDEL') result = hash.delete(a) ? 1 : 0;
+      if (cmd === 'HGET') result = hash.has(a) ? hash.get(a) : null;
+      if (cmd === 'EXPIRE') result = 1;
       if (cmd === 'HGETALL') result = [...hash.entries()].flat();
       return { ok: true, json: async () => ({ result }) };
     };
@@ -448,26 +448,26 @@ describe('committee handler — with KV', () => {
     await committee(req(reqOpts), r);
     return r;
   }
+  const crisis = require(path.join(root, 'api/crisis'));
+  async function callCrisis(reqOpts) {
+    const r = res();
+    await crisis(req(reqOpts), r);
+    return r;
+  }
+  const crisisPost = (action, body) => callCrisis({ method: 'POST', url: '/api/crisis?action=' + action, headers: admin(), body });
+  const crisisState = async () => (await callCrisis({ method: 'GET', url: '/api/crisis?action=state', headers: admin() })).json;
   const admin = () => ({ authorization: 'Bearer ' + auth.sign({ sub: 'admin', exp: Date.now() + 60_000 }) });
-  const directive = (i) => call({ method: 'POST', url: '/api/committee?action=directive', body: { delegation: 'D' + i, text: 't' + i } });
+  /** A directive from before delegate logins. New ones can't be posted this way. */
+  const directive = async (i) => {
+    const id = 'dir_' + i, hash = kv.get('crisis:directives:v2') || new Map();
+    hash.set(id, JSON.stringify({ id, delegation: 'D' + i, text: 't' + i, time: new Date().toISOString() }));
+    kv.set('crisis:directives:v2', hash);
+    return { json: { id } };
+  };
 
-  test('simultaneous directives are all stored', async () => {
-    await Promise.all(Array.from({ length: 20 }, (_, i) => directive(i)));
-    const r = await call({ method: 'GET', url: '/api/committee' });
-    assert.strictEqual(r.json.directives.length, 20);
-  });
-
-  test('delegate code is enforced when DELEGATE_CODE is set', async () => {
-    process.env.DELEGATE_CODE = 'FORMA-ABC123';
-    try {
-      const post = (code) => call({ method: 'POST', url: '/api/committee?action=directive', body: { delegation: 'D', text: 't', code } });
-      assert.strictEqual((await post('wrong')).statusCode, 403);
-      assert.strictEqual((await post(undefined)).json.code, 'bad_code');
-      assert.strictEqual((await post(' forma-abc123 ')).statusCode, 200);   // forgiving about case and spaces
-      const r = await call({ method: 'GET', url: '/api/committee' });
-      assert.strictEqual(r.json.codeRequired, true);
-      assert.ok(!JSON.stringify(r.json).includes('ABC123'), 'the public API must never reveal the code');
-    } finally { delete process.env.DELEGATE_CODE; }
+  test('the old public directive form is closed', async () => {
+    const r = await call({ method: 'POST', url: '/api/committee?action=directive', body: { delegation: 'D', text: 't' } });
+    assert.strictEqual(r.statusCode, 410);
   });
 
   test('deleting a directive removes only that one', async () => {
@@ -495,6 +495,772 @@ describe('committee handler — with KV', () => {
     await post('speaker', { op: 'remove', index: c.currentSpeakerIdx });   // remove B, the current one
     c = (await call({ method: 'GET', url: '/api/committee' })).json.caucus;
     assert.strictEqual(c.currentSpeakerIdx, -1);
+  });
+
+  const post = (action, body) => call({ method: 'POST', url: '/api/committee?action=' + action, headers: admin(), body });
+  const state = async () => (await call({ method: 'GET', url: '/api/committee', headers: admin() })).json.caucus;
+  const delegateList = async () => (await call({ method: 'GET', url: '/api/committee?action=delegates', headers: admin() })).json.delegates;
+  const speakerId = (c, name) => c.speakers.find((s) => s.name === name).id;
+  const running = async (names) => {
+    await post('caucus', { type: 'moderated', totalMin: 10, perSpeakerMin: 1 });
+    await post('speaker', { op: 'add', names });
+    await post('control', { op: 'start' });
+  };
+
+  test('a list of speakers is added in one request and duplicates are skipped', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    await post('speaker', { op: 'add', name: 'Germany' });
+    const r = await post('speaker', { op: 'add', names: ['France', 'germany ', 'Japan', 'FRANCE', ''] });
+    assert.deepStrictEqual(r.json.added, ['France', 'Japan']);
+    assert.deepStrictEqual(r.json.skipped, ['germany', 'FRANCE']);
+    assert.deepStrictEqual((await state()).speakers.map((s) => s.name), ['Germany', 'France', 'Japan']);
+    assert.strictEqual((await post('speaker', { op: 'add', names: [' '] })).statusCode, 400);
+  });
+
+  test('someone who has already spoken can queue again', async () => {
+    await running(['A', 'B']);
+    await post('control', { op: 'next' });
+    const r = await post('speaker', { op: 'add', name: 'A' });
+    assert.deepStrictEqual(r.json.added, ['A']);
+  });
+
+  test('the speakers queue stops at 100', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    const r = await post('speaker', { op: 'add', names: Array.from({ length: 120 }, (_, i) => 'D' + i) });
+    assert.strictEqual(r.json.added.length, 100);
+    assert.strictEqual(r.json.full, true);
+    assert.strictEqual((await state()).speakers.length, 100);
+  });
+
+  test('removing by id takes out that person even when positions changed', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    await post('speaker', { op: 'add', names: ['A', 'B', 'C'] });
+    let c = await state();
+    await post('speaker', { op: 'remove', id: speakerId(c, 'C') });
+    await post('speaker', { op: 'remove', id: 'no-such-id' });
+    c = await state();
+    assert.deepStrictEqual(c.speakers.map((s) => s.name), ['A', 'B']);
+  });
+
+  test('moving speakers keeps the current speaker correct', async () => {
+    await running(['A', 'B', 'C']);
+    let c = await state();
+    await post('speaker', { op: 'move', id: speakerId(c, 'B'), dir: 'up' });
+    await post('speaker', { op: 'move', id: speakerId(c, 'B'), dir: 'up' });   // already first: nothing happens
+    c = await state();
+    assert.deepStrictEqual(c.speakers.map((s) => s.name), ['B', 'A', 'C']);
+    assert.strictEqual(c.speakers[c.currentSpeakerIdx].name, 'A');
+  });
+
+  test('NEXT finds a waiting speaker moved above the current one', async () => {
+    await running(['A', 'B', 'C']);
+    let c = await state();
+    await post('speaker', { op: 'move', id: speakerId(c, 'C'), dir: 'up' });
+    await post('speaker', { op: 'move', id: speakerId(c, 'C'), dir: 'up' });   // C, A, B with A speaking
+    await post('control', { op: 'next' });
+    c = await state();
+    assert.strictEqual(c.speakers[c.currentSpeakerIdx].name, 'C');
+  });
+
+  test('CLEAR WAITING leaves the current speaker and those who spoke', async () => {
+    await running(['A', 'B', 'C', 'D']);
+    await post('control', { op: 'next' });
+    await post('speaker', { op: 'clear-waiting' });
+    const c = await state();
+    assert.deepStrictEqual(c.speakers.map((s) => s.status), ['done', 'speaking']);
+    assert.strictEqual(c.speakers[c.currentSpeakerIdx].name, 'B');
+  });
+
+  test('SPEAK NOW on a waiting speaker skips ahead', async () => {
+    await running(['A', 'B', 'C']);
+    const before = await state();
+    await post('control', { op: 'jump', id: speakerId(before, 'C') });
+    const c = await state();
+    assert.deepStrictEqual(c.speakers.map((s) => s.status), ['done', 'waiting', 'speaking']);
+    assert.strictEqual(c.currentSpeakerIdx, 2);
+  });
+
+  test('SPEAK NOW on someone who spoke undoes a wrong NEXT', async () => {
+    await post('delegate', { op: 'add', names: ['A', 'B'] });
+    await running(['A', 'B']);
+    await post('control', { op: 'next' });                     // wrong: B starts
+    const before = await state();
+    await post('control', { op: 'jump', id: speakerId(before, 'A') });
+    const c = await state();
+    assert.deepStrictEqual(c.speakers.map((s) => s.status), ['speaking', 'waiting']);
+    assert.deepStrictEqual((await delegateList()).map((d) => d.spoke), [1, 0]);
+  });
+
+  test('a speaker changed during a pause gets their full time', async () => {
+    await running(['A', 'B']);
+    await post('control', { op: 'pause' });
+    const paused = await state();
+    paused.pausedAt = new Date(Date.now() - 20000).toISOString();          // paused 20 seconds ago
+    kv.set('crisis:caucus', JSON.stringify(paused));
+    await post('control', { op: 'jump', id: speakerId(paused, 'B') });
+    await post('control', { op: 'resume' });
+    const c = await state();
+    const used = Date.now() - Date.parse(c.currentSpeakerStartedAt) - (c.accPausedMs - c.accPausedMsAtSpeakerStart);
+    assert.ok(Math.abs(used) < 2000, 'used ' + used);
+  });
+
+  test('adding caucus time works, even after it ran out', async () => {
+    await running(['A']);
+    await post('control', { op: 'extend', seconds: 60 });
+    assert.strictEqual((await state()).totalMs, 660000);
+    const late = await state();
+    late.startedAt = new Date(Date.now() - 900000).toISOString();          // 4 minutes over
+    kv.set('crisis:caucus', JSON.stringify(late));
+    await post('control', { op: 'extend', seconds: 60 });
+    const c = await state();
+    const left = c.totalMs - (Date.now() - Date.parse(c.startedAt));
+    assert.ok(left > 55000 && left <= 60000, 'left ' + left);
+  });
+
+  test('adding speaker time works, even after it ran out', async () => {
+    await running(['A']);
+    const late = await state();
+    late.currentSpeakerStartedAt = new Date(Date.now() - 100000).toISOString();   // 40 seconds over
+    kv.set('crisis:caucus', JSON.stringify(late));
+    await post('control', { op: 'extend-speaker', seconds: 30 });
+    const c = await state();
+    const left = c.perSpeakerMs - (Date.now() - Date.parse(c.currentSpeakerStartedAt));
+    assert.ok(left > 25000 && left <= 30000, 'left ' + left);
+  });
+
+  test('an ended caucus can be reopened and the gap is not charged', async () => {
+    await running(['A']);
+    await post('control', { op: 'stop' });
+    const ended = await state();
+    assert.strictEqual(ended.status, 'ended');
+    assert.ok(ended.endedAt);
+    ended.endedAt = new Date(Date.now() - 30000).toISOString();            // ended 30 seconds ago
+    kv.set('crisis:caucus', JSON.stringify(ended));
+    await post('control', { op: 'reopen' });
+    const c = await state();
+    assert.strictEqual(c.status, 'active');
+    assert.ok(c.accPausedMs >= 29000);
+    assert.strictEqual(c.speakers[c.currentSpeakerIdx].name, 'A');
+  });
+
+  test('STOP does nothing to a caucus that never started', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    await post('control', { op: 'stop' });
+    assert.strictEqual((await state()).status, 'idle');
+  });
+
+  test('editing the setup can keep the speakers', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    await post('speaker', { op: 'add', names: ['A', 'B'] });
+    await post('caucus', { type: 'moderated', totalMin: 9, keepSpeakers: true });
+    const c = await state();
+    assert.strictEqual(c.totalMs, 540000);
+    assert.deepStrictEqual(c.speakers.map((s) => s.name), ['A', 'B']);
+    await post('caucus', { type: 'moderated', totalMin: 9 });
+    assert.strictEqual((await state()).speakers.length, 0);
+  });
+
+  test('speakers saved before ids existed keep working', async () => {
+    kv.set('crisis:caucus', JSON.stringify({ type: 'moderated', totalMs: 60000, status: 'idle', speakers: [{ name: 'A', status: 'waiting' }, { name: 'B', status: 'waiting' }] }));
+    const a = await state(), b = await state();
+    assert.deepStrictEqual(a.speakers.map((s) => s.id), b.speakers.map((s) => s.id));
+    await post('speaker', { op: 'remove', id: a.speakers[0].id });
+    assert.deepStrictEqual((await state()).speakers.map((s) => s.name), ['B']);
+  });
+
+  test('the public GET hides an idle caucus and never has delegates', async () => {
+    await post('delegate', { op: 'add', names: ['Secret Delegate'] });
+    await post('caucus', { type: 'moderated', totalMin: 5, topic: 'Secret topic' });
+    await post('speaker', { op: 'add', name: 'Secret Speaker' });
+    const idle = await call({ method: 'GET', url: '/api/committee' });
+    assert.ok(!/Secret/.test(JSON.stringify(idle.json)), 'nothing secret while idle');
+    assert.strictEqual(idle.json.admin, false);
+    const own = await call({ method: 'GET', url: '/api/committee', headers: admin() });
+    assert.strictEqual(own.json.caucus.speakers.length, 1);
+    assert.strictEqual(own.json.admin, true);
+    await post('control', { op: 'start' });
+    const live = await call({ method: 'GET', url: '/api/committee' });
+    assert.ok(JSON.stringify(live.json).includes('Secret Speaker'), 'the queue goes public once started');
+    assert.ok(!JSON.stringify(live.json).includes('Secret Delegate'), 'the delegate list never does');
+  });
+
+  test('a signed token that is not an admin session is refused everywhere', async () => {
+    const adminLib = require(path.join(root, 'api/admin'));
+    process.env.ADMIN_USERNAME = 'a'; process.env.ADMIN_PASSWORD = 'b';
+    try {
+      const fake = { authorization: 'Bearer ' + auth.sign({ sub: 'delegate', exp: Date.now() + 60_000 }) };
+      const adminRes = res();
+      await adminLib(req({ method: 'GET', url: '/api/admin?action=status', headers: fake }), adminRes);
+      assert.strictEqual(adminRes.statusCode, 401);
+      assert.strictEqual((await call({ method: 'POST', url: '/api/committee?action=control', headers: fake, body: { op: 'clear' } })).statusCode, 401);
+      assert.strictEqual((await call({ method: 'GET', url: '/api/committee?action=delegates', headers: fake })).statusCode, 401);
+      assert.strictEqual((await callCrisis({ method: 'GET', url: '/api/crisis?action=state', headers: fake })).statusCode, 401);
+      assert.strictEqual((await call({ method: 'GET', url: '/api/committee', headers: fake })).json.admin, false);
+    } finally { delete process.env.ADMIN_USERNAME; delete process.env.ADMIN_PASSWORD; }
+  });
+
+  test('caucus changes sent at the same moment all survive', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    await Promise.all(Array.from({ length: 15 }, (_, i) => post('speaker', { op: 'add', name: 'S' + i })));
+    assert.strictEqual((await state()).speakers.length, 15);
+    assert.strictEqual(kv.has('crisis:lock:caucus'), false);
+  });
+
+  test('a stuck lock answers busy instead of overwriting', { timeout: 6000 }, async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    kv.set('crisis:lock:caucus', '1');
+    const r = await post('speaker', { op: 'add', name: 'Late' });
+    assert.strictEqual(r.statusCode, 409);
+    assert.strictEqual(r.json.code, 'busy');
+    assert.strictEqual(kv.has('crisis:lock:caucus'), true, 'the other request keeps its lock');
+    assert.strictEqual((await state()).speakers.length, 0);
+  });
+
+  test('crisis room needs an admin session', async () => {
+    assert.strictEqual((await callCrisis({ method: 'GET', url: '/api/crisis?action=state' })).statusCode, 401);
+    assert.strictEqual((await callCrisis({ method: 'GET', url: '/api/crisis?action=rev' })).statusCode, 401);
+    assert.strictEqual((await callCrisis({ method: 'POST', url: '/api/crisis?action=note', body: { text: 'x' } })).statusCode, 401);
+  });
+
+  test('the activity log records who did what, newest first', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5, topic: 'Harbour', actor: ' Sara ' });
+    await post('speaker', { op: 'add', names: ['A', 'B'], actor: 'Sara' });
+    await post('control', { op: 'start', actor: 'Omar' });
+    await post('control', { op: 'next', actor: 'Omar' });
+    const { feed, feedTotal } = await crisisState();
+    assert.strictEqual(feedTotal, 4);
+    assert.deepStrictEqual(feed.map((e) => e.summary), ['Next speaker', 'Caucus started', '2 speakers added', 'Moderated caucus set up']);
+    assert.strictEqual(feed[0].actor, 'Omar');
+    assert.strictEqual(feed[0].target, 'B');
+    assert.strictEqual(feed[3].actor, 'Sara');
+    assert.ok(Date.parse(feed[0].time));
+  });
+
+  test('a press that changes nothing is not logged', async () => {
+    await post('caucus', { type: 'moderated', totalMin: 5 });
+    await post('control', { op: 'next' });                     // not running yet
+    await post('control', { op: 'stop' });
+    assert.strictEqual((await crisisState()).feedTotal, 1);
+  });
+
+  test('the change counter moves only when something changed', async () => {
+    const rev = async () => (await callCrisis({ method: 'GET', url: '/api/crisis?action=rev', headers: admin() })).json.rev;
+    const start = await rev();
+    assert.strictEqual(await rev(), start);
+    await crisisPost('note', { text: 'Hello', actor: 'Sara' });
+    assert.ok((await rev()) > start);
+  });
+
+  test('a chair note is stored once even if the press is repeated', async () => {
+    const send = () => crisisPost('note', { text: 'Check the harbour', opId: 'op-1', actor: 'Sara' });
+    const [a, b] = await Promise.all([send(), send()]);
+    const c = await send();
+    assert.strictEqual(a.statusCode, 200);
+    assert.deepStrictEqual(b.json, a.json);
+    assert.deepStrictEqual(c.json, a.json);
+    assert.strictEqual((await crisisState()).feedTotal, 1);
+  });
+
+  test('a blank note is refused and long text is cut', async () => {
+    assert.strictEqual((await crisisPost('note', { text: '  ' })).statusCode, 400);
+    await crisisPost('note', { text: 'x'.repeat(900), actor: 'y'.repeat(100) });
+    const [entry] = (await crisisState()).feed;
+    assert.strictEqual(entry.detail.length, 500);
+    assert.strictEqual(entry.actor.length, 40);
+  });
+
+  test('the log can be read in pages', async () => {
+    for (let i = 0; i < 5; i++) await crisisPost('note', { text: 'n' + i });
+    const page = (await callCrisis({ method: 'GET', url: '/api/crisis?action=log&before=3&limit=2', headers: admin() })).json;
+    assert.deepStrictEqual(page.entries.map((e) => e.detail), ['n2', 'n1']);
+    assert.strictEqual(page.total, 5);
+  });
+
+  test('the summary counts what is there and leaves private data out of public responses', async () => {
+    await post('delegate', { op: 'add', names: ['A', 'B', 'C'] });
+    const list = (await post('delegate', { op: 'all-present' })).json.delegates;
+    await post('delegate', { op: 'update', id: list[0].id, present: false });
+    await directive(1);
+    const { summary } = await crisisState();
+    assert.deepStrictEqual([summary.present, summary.delegates, summary.oldDirectives], [2, 3, 1]);
+    await crisisPost('note', { text: 'Secret chair note' });
+    const open = await call({ method: 'GET', url: '/api/committee' });
+    assert.ok(!JSON.stringify(open.json).includes('Secret chair note'));
+  });
+
+  // ── Crisis Room ─────────────────────────────────────────
+  const rulesLib = require(path.join(root, 'api/_lib/crisis-rules'));
+  const { CHAIR, DELEGATE } = require(path.join(root, 'api/_lib/crisis-actions'));
+  const released = (name, fn) => test(name, async () => {
+    process.env.RELEASE_AT = '2000-01-01T00:00:00Z';
+    try { await fn(); } finally { delete process.env.RELEASE_AT; }
+  });
+  const bearer = (token) => ({ authorization: 'Bearer ' + token });
+  const login = (code, ip = '1.1.1.1') => callCrisis({ method: 'POST', url: '/api/crisis?action=login', headers: { 'x-forwarded-for': ip }, body: { code } });
+  const asDelegate = (token, action, body) => callCrisis({ method: 'POST', url: '/api/crisis?action=' + action, headers: bearer(token), body });
+  const me = async (token) => (await callCrisis({ method: 'GET', url: '/api/crisis?action=me', headers: bearer(token) })).json;
+  const projector = async () => (await callCrisis({ method: 'GET', url: '/api/crisis?action=projector' })).json;
+  /** Delegates with codes, logged in. Returns { Ana: { id, token, code }, … }. */
+  async function people(...names) {
+    const added = (await post('delegate', { op: 'add', names })).json.delegates;
+    const codes = (await crisisPost('code-new', {})).json.codes;
+    const out = {};
+    for (const c of codes) out[c.name] = { id: added.find((d) => d.name === c.name).id, code: c.code, token: (await login(c.code)).json.token };
+    return out;
+  }
+  const FIELDS = { objective: 'Secure the port', actions: 'Send the fleet' };
+  async function submitted(who, title = 'Fleet order') {
+    const { id } = (await asDelegate(who.token, 'draft-save', { title, fields: FIELDS })).json;
+    await asDelegate(who.token, 'directive-submit', { id });
+    return id;
+  }
+  const chairDirective = async (id) => (await crisisState()).directives.find((d) => d.id === id);
+  async function approvedUpdate(fields) {
+    const u = (await crisisPost('update-save', Object.assign({ headline: 'Secret headline', body: 'Secret body' }, fields))).json.update;
+    await crisisPost('update-status', { id: u.id, status: 'approved' });
+    return u;
+  }
+  async function motionInOrder(body) {
+    const m = (await crisisPost('motion-add', Object.assign({ type: 'moderated', proposer: 'Ana', topic: 'Port', totalSec: 300, speakerSec: 60 }, body))).json.motion;
+    await crisisPost('motion-rule', { id: m.id, ruling: 'in-order' });
+    return m;
+  }
+
+  test('vote sums follow the threshold exactly', () => {
+    const [simple, twoThirds] = rulesLib.DEFAULT_RULES.thresholds;
+    const t = (yes, no, abstain = 0) => ({ for: yes, against: no, abstain });
+    assert.strictEqual(rulesLib.decide(simple, t(5, 5), 10), false, 'a tie is not a majority');
+    assert.strictEqual(rulesLib.decide(simple, t(6, 5), 11), true);
+    assert.strictEqual(rulesLib.decide(simple, t(3, 2, 5), 10), true, 'abstentions leave the base');
+    assert.strictEqual(rulesLib.decide(twoThirds, t(2, 1), 3), true, 'exactly two thirds passes');
+    assert.strictEqual(rulesLib.decide(twoThirds, t(20, 11), 31), false);
+    assert.strictEqual(rulesLib.decide(simple, t(0, 0, 4), 4), false, 'nobody voting passes nothing');
+    assert.strictEqual(rulesLib.decide({ num: 1, den: 2, base: 'eligible', strict: true }, t(5, 1), 12), false);
+    assert.strictEqual(rulesLib.quorumNeeded(5, 50), 3);
+  });
+
+  test('bad rules are refused with plain reasons and nothing is guessed', async () => {
+    const rules = JSON.parse(JSON.stringify(rulesLib.DEFAULT_RULES));
+    rules.motionTypes[0].threshold = 'missing';
+    rules.thresholds[0].num = 5;
+    const r = await crisisPost('rules-save', { rules });
+    assert.strictEqual(r.statusCode, 400);
+    assert.strictEqual(r.json.problems.length, 2);
+    assert.deepStrictEqual((await crisisState()).rules, rulesLib.DEFAULT_RULES);
+  });
+
+  test('a threshold can be renamed and chosen again', async () => {
+    const rules = JSON.parse(JSON.stringify(rulesLib.DEFAULT_RULES));
+    Object.assign(rules.thresholds[0], { id: '', label: 'Half plus one' });
+    rules.motionTypes.filter((m) => m.threshold === 'simple').forEach((m) => { m.threshold = 'Half plus one'; });
+    const r = await crisisPost('rules-save', { rules });
+    assert.strictEqual(r.statusCode, 200);
+    assert.strictEqual(r.json.rules.motionTypes[0].threshold, 'half-plus-one');
+  });
+
+  test('a passed motion leads to a vote, and the vote decides it', async () => {
+    await people('Ana', 'Ben', 'Cy');
+    const m = await motionInOrder();
+    const vote = (await crisisPost('vote-open', { motionId: m.id })).json.vote;
+    assert.deepStrictEqual(vote.eligible, ['Ana', 'Ben', 'Cy']);
+    assert.strictEqual((await crisisPost('vote-open', { question: 'Another' })).json.code, 'vote_already_open');
+    const closed = (await crisisPost('vote-close', { id: vote.id, tally: { for: 2, against: 1, abstain: 0 } })).json.vote;
+    assert.strictEqual(closed.passed, true);
+    const after = (await crisisState()).motions[0];
+    assert.strictEqual(after.status, 'passed');
+    assert.strictEqual((await crisisPost('motion-done', { id: m.id })).json.motion.activityDone, true);
+    assert.strictEqual((await crisisPost('motion-done', { id: m.id })).statusCode, 409);
+  });
+
+  test('a failed vote fails the motion, and out of order needs a reason', async () => {
+    await people('Ana', 'Ben', 'Cy');
+    const m = await motionInOrder();
+    const v = (await crisisPost('vote-open', { motionId: m.id })).json.vote;
+    await crisisPost('vote-close', { id: v.id, tally: { for: 1, against: 2, abstain: 0 } });
+    assert.strictEqual((await crisisState()).motions[0].status, 'failed');
+    const other = (await crisisPost('motion-add', { type: 'adjournment', proposer: 'Ben' })).json.motion;
+    assert.strictEqual((await crisisPost('motion-rule', { id: other.id, ruling: 'out-of-order' })).statusCode, 400);
+    assert.strictEqual((await crisisPost('motion-rule', { id: other.id, ruling: 'out-of-order', reason: 'Too early' })).json.motion.status, 'out-of-order');
+  });
+
+  test('voters and rules are frozen when voting opens', async () => {
+    const { Ana } = await people('Ana', 'Ben', 'Cy');
+    const v = (await crisisPost('vote-open', { question: 'Q', threshold: 'simple' })).json.vote;
+    await post('delegate', { op: 'update', id: Ana.id, present: false });
+    const rules = JSON.parse(JSON.stringify(rulesLib.DEFAULT_RULES));
+    rules.thresholds.find((t) => t.id === 'simple').num = 2;
+    rules.thresholds.find((t) => t.id === 'simple').den = 3;
+    await crisisPost('rules-save', { rules });
+    const closed = (await crisisPost('vote-close', { id: v.id, tally: { for: 2, against: 1, abstain: 0 } })).json.vote;
+    assert.strictEqual(closed.eligible.length, 3);
+    assert.strictEqual(closed.threshold.num, 1, 'the vote keeps the rule it started with');
+    assert.strictEqual(closed.passed, true);
+  });
+
+  test('impossible counts are refused and an open vote stays open', async () => {
+    await people('Ana', 'Ben');
+    const v = (await crisisPost('vote-open', { question: 'Q', threshold: 'simple' })).json.vote;
+    assert.strictEqual((await crisisPost('vote-close', { id: v.id, tally: { for: 2, against: 1, abstain: 0 } })).json.code, 'too_many_votes');
+    assert.strictEqual((await crisisPost('vote-close', { id: v.id, tally: { for: -1, against: 1, abstain: 0 } })).json.code, 'bad_tally');
+    assert.strictEqual((await crisisState()).votes[0].status, 'open');
+  });
+
+  test('a missing quorum stops a vote unless a reason is recorded', async () => {
+    const { Ana, Ben, Cy } = await people('Ana', 'Ben', 'Cy', 'Di');
+    for (const d of [Ana, Ben, Cy]) await post('delegate', { op: 'update', id: d.id, present: false });
+    const r = await crisisPost('vote-open', { question: 'Q', threshold: 'simple' });
+    assert.strictEqual(r.json.code, 'no_quorum');
+    assert.deepStrictEqual([r.json.present, r.json.needed], [1, 2]);
+    const forced = await crisisPost('vote-open', { question: 'Q', threshold: 'simple', quorumOverride: 'Chair ruling' });
+    assert.strictEqual(forced.json.vote.quorum.override, 'Chair ruling');
+  });
+
+  test('a correction keeps the first result on the record and can flip the motion', async () => {
+    await people('Ana', 'Ben', 'Cy');
+    const m = await motionInOrder();
+    const v = (await crisisPost('vote-open', { motionId: m.id })).json.vote;
+    await crisisPost('vote-close', { id: v.id, tally: { for: 2, against: 1, abstain: 0 } });
+    assert.strictEqual((await crisisPost('vote-correct', { id: v.id, tally: { for: 1, against: 2, abstain: 0 } })).json.code, 'missing_reason');
+    const fixed = (await crisisPost('vote-correct', { id: v.id, reason: 'Miscounted', tally: { for: 1, against: 2, abstain: 0 } })).json.vote;
+    assert.strictEqual(fixed.passed, false);
+    assert.strictEqual(fixed.corrections[0].was.tally.for, 2);
+    assert.strictEqual(fixed.corrections[0].was.passed, true);
+    assert.strictEqual((await crisisState()).motions[0].status, 'failed');
+  });
+
+  test('a roll call counts only frozen voters', async () => {
+    await people('Ana', 'Ben');
+    const v = (await crisisPost('vote-open', { question: 'Q', threshold: 'simple', method: 'roll' })).json.vote;
+    assert.strictEqual((await crisisPost('vote-close', { id: v.id, roll: { Ana: 'for', Zed: 'for' } })).json.code, 'not_eligible');
+    assert.strictEqual((await crisisPost('vote-close', { id: v.id, roll: { Ana: 'maybe' } })).json.code, 'bad_tally');
+    const closed = (await crisisPost('vote-close', { id: v.id, roll: { Ana: 'for' } })).json.vote;
+    assert.deepStrictEqual(closed.tally, { for: 1, against: 0, abstain: 0, missing: 1 });
+  });
+
+  test('delegates cannot log in before release', async () => {
+    await post('delegate', { op: 'add', names: ['Ana'] });
+    const { code } = (await crisisPost('code-new', {})).json.codes[0];
+    process.env.RELEASE_AT = '2099-01-01T00:00:00Z';
+    try {
+      const r = await login(code);
+      assert.strictEqual(r.statusCode, 403);
+      assert.strictEqual(r.json.code, 'not_released');
+      assert.strictEqual(r.json.token, undefined);
+    } finally { delete process.env.RELEASE_AT; }
+  });
+
+  released('a login code works, ignores case and dashes, and is never stored', async () => {
+    await post('delegate', { op: 'add', names: ['Ana'] });
+    const { code } = (await crisisPost('code-new', {})).json.codes[0];
+    assert.ok((await login(code.toLowerCase().replace(/-/g, ' '))).json.token);
+    assert.strictEqual((await login('WRONG-CODE')).statusCode, 401);
+    const stored = JSON.stringify([...kv.entries()].map(([k, v]) => [k, v instanceof Map ? [...v.entries()] : v]));
+    assert.ok(!stored.includes(code), 'the code itself is not in the store');
+    assert.strictEqual((await crisisState()).people[0].hasCode, true);
+    assert.ok(!JSON.stringify(await crisisState()).includes('codeHash'));
+  });
+
+  released('a new code ends the old code and any open session', async () => {
+    const { Ana } = await people('Ana');
+    const fresh = (await crisisPost('code-new', { id: Ana.id })).json.codes[0].code;
+    assert.strictEqual((await login(Ana.code)).statusCode, 401);
+    assert.strictEqual((await callCrisis({ method: 'GET', url: '/api/crisis?action=me', headers: bearer(Ana.token) })).statusCode, 401);
+    assert.ok((await login(fresh)).json.token);
+  });
+
+  released('too many wrong codes are locked out, even with the right code', async () => {
+    await post('delegate', { op: 'add', names: ['Ana'] });
+    const { code } = (await crisisPost('code-new', {})).json.codes[0];
+    for (let i = 0; i < 10; i++) await login('NOPE', '9.9.9.9');
+    assert.strictEqual((await login(code, '9.9.9.9')).statusCode, 429);
+    assert.ok((await login(code, '8.8.8.8')).json.token, 'another device is unaffected');
+  });
+
+  released('a delegate session is refused on every chair action', async () => {
+    const { Ana } = await people('Ana');
+    for (const action of Object.keys(CHAIR)) {
+      assert.strictEqual((await asDelegate(Ana.token, action, { id: Ana.id, text: 'x' })).statusCode, 401, action);
+    }
+    for (const action of ['state', 'rev', 'log', 'versions', 'archive']) {
+      assert.strictEqual((await callCrisis({ method: 'GET', url: '/api/crisis?action=' + action, headers: bearer(Ana.token) })).statusCode, 401, action);
+    }
+    assert.strictEqual((await call({ method: 'POST', url: '/api/committee?action=control', headers: bearer(Ana.token), body: { op: 'clear' } })).statusCode, 401);
+    assert.strictEqual((await call({ method: 'GET', url: '/api/committee?action=delegates', headers: bearer(Ana.token) })).statusCode, 401);
+  });
+
+  test('delegate actions refuse anyone without a delegate session', async () => {
+    const forged = bearer(auth.sign({ sub: 'delegate', id: 'x', v: 1, exp: Date.now() + 60000 }));
+    for (const action of Object.keys(DELEGATE)) {
+      assert.strictEqual((await callCrisis({ method: 'POST', url: '/api/crisis?action=' + action, body: {} })).statusCode, 401, action);
+      assert.strictEqual((await callCrisis({ method: 'POST', url: '/api/crisis?action=' + action, headers: forged, body: {} })).statusCode, 401, action);
+      assert.strictEqual((await callCrisis({ method: 'POST', url: '/api/crisis?action=' + action, headers: admin(), body: {} })).statusCode, 400, action);
+    }
+    assert.strictEqual((await callCrisis({ method: 'GET', url: '/api/crisis?action=me' })).statusCode, 401);
+  });
+
+  released('drafts stay with the delegate until they are sent', async () => {
+    const { Ana } = await people('Ana');
+    await asDelegate(Ana.token, 'draft-save', { title: 'Hidden draft', fields: { objective: 'Hidden text' } });
+    assert.ok(!JSON.stringify(await crisisState()).includes('Hidden'));
+    assert.strictEqual((await me(Ana.token)).directives[0].title, 'Hidden draft');
+  });
+
+  released('sending needs the required fields and gives a reference', async () => {
+    const { Ana } = await people('Ana');
+    const { id } = (await asDelegate(Ana.token, 'draft-save', { title: 'T', fields: { objective: 'O' } })).json;
+    const bad = await asDelegate(Ana.token, 'directive-submit', { id });
+    assert.deepStrictEqual(bad.json.missing, ['actions']);
+    await asDelegate(Ana.token, 'draft-save', { id, title: 'T', fields: FIELDS });
+    const good = await asDelegate(Ana.token, 'directive-submit', { id });
+    assert.strictEqual(good.json.ref, 'D-001');
+    assert.ok(Date.parse(good.json.submittedAt));
+  });
+
+  released('a repeated send does not make a second version', async () => {
+    const { Ana } = await people('Ana');
+    const { id } = (await asDelegate(Ana.token, 'draft-save', { title: 'T', fields: FIELDS })).json;
+    const send = () => asDelegate(Ana.token, 'directive-submit', { id, opId: 'same' });
+    const [a, b] = await Promise.all([send(), send()]);
+    assert.deepStrictEqual(a.json, b.json);
+    assert.strictEqual((await chairDirective(id)).version, 1);
+  });
+
+  released('sent versions never change, and revisions make new ones', async () => {
+    const { Ana } = await people('Ana');
+    const id = await submitted(Ana);
+    assert.strictEqual((await asDelegate(Ana.token, 'draft-save', { id, title: 'Changed', fields: FIELDS })).statusCode, 409, 'no edits after sending');
+    await crisisPost('directive-decide', { id, decision: 'revise', reason: 'Be clearer' });
+    await asDelegate(Ana.token, 'draft-save', { id, title: 'Second try', fields: { objective: 'New', actions: 'New' } });
+    assert.strictEqual((await chairDirective(id)).title, 'Fleet order', 'chairs see the last sent text while it is being rewritten');
+    await asDelegate(Ana.token, 'directive-submit', { id });
+    const r = await callCrisis({ method: 'GET', url: '/api/crisis?action=versions&id=' + id, headers: admin() });
+    assert.deepStrictEqual(r.json.versions.map((v) => [v.version, v.title]), [[2, 'Second try'], [1, 'Fleet order']]);
+    assert.strictEqual(r.json.versions[1].fields.objective, FIELDS.objective);
+  });
+
+  released('an approved directive cannot be edited by its author', async () => {
+    const { Ana } = await people('Ana');
+    const id = await submitted(Ana);
+    await crisisPost('directive-decide', { id, decision: 'approve' });
+    assert.strictEqual((await asDelegate(Ana.token, 'draft-save', { id, title: 'Sneaky', fields: FIELDS })).statusCode, 409);
+    assert.strictEqual((await asDelegate(Ana.token, 'directive-withdraw', { id })).statusCode, 409);
+    assert.strictEqual((await chairDirective(id)).title, 'Fleet order');
+  });
+
+  released('one delegate can never see or touch another delegate\'s directive', async () => {
+    const { Ana, Ben } = await people('Ana', 'Ben');
+    const id = await submitted(Ana, 'Ana private order');
+    assert.ok(!JSON.stringify(await me(Ben.token)).includes('Ana private order'));
+    assert.strictEqual((await asDelegate(Ben.token, 'draft-save', { id, title: 'Stolen', fields: FIELDS })).statusCode, 404);
+    assert.strictEqual((await asDelegate(Ben.token, 'directive-submit', { id })).statusCode, 404);
+    assert.strictEqual((await asDelegate(Ben.token, 'directive-withdraw', { id })).statusCode, 404);
+  });
+
+  released('rejecting needs a reason, and a chair note stays with the chairs', async () => {
+    const { Ana } = await people('Ana');
+    const id = await submitted(Ana);
+    assert.strictEqual((await crisisPost('directive-decide', { id, decision: 'reject' })).json.code, 'missing_reason');
+    await crisisPost('directive-decide', { id, decision: 'reject', reason: 'Not possible', note: 'Secret chair opinion' });
+    const view = await me(Ana.token);
+    assert.strictEqual(view.directives[0].status, 'rejected');
+    assert.strictEqual(view.directives[0].feedback[0].reason, 'Not possible');
+    assert.ok(!JSON.stringify(view).includes('Secret chair opinion'));
+    assert.strictEqual(view.inbox[0].subject, 'Directive D-001 rejected');
+  });
+
+  released('two chairs reviewing at once cannot both win', async () => {
+    const { Ana } = await people('Ana');
+    const id = await submitted(Ana);
+    const results = await Promise.all([
+      crisisPost('directive-decide', { id, version: 1, decision: 'approve' }),
+      crisisPost('directive-decide', { id, version: 1, decision: 'reject', reason: 'No' })
+    ]);
+    assert.deepStrictEqual(results.map((r) => r.statusCode).sort(), [200, 409]);
+    assert.strictEqual((await chairDirective(id)).decisions.length, 1);
+  });
+
+  released('a decision can only be changed through a correction with a reason', async () => {
+    const { Ana } = await people('Ana');
+    const id = await submitted(Ana);
+    await crisisPost('directive-decide', { id, decision: 'approve' });
+    assert.strictEqual((await crisisPost('directive-decide', { id, decision: 'reject', reason: 'Plain change' })).statusCode, 409);
+    assert.strictEqual((await crisisPost('directive-decide', { id, decision: 'reject', correction: true })).json.code, 'missing_reason');
+    await crisisPost('directive-decide', { id, decision: 'reject', correction: true, reason: 'Approved in error' });
+    const d = await chairDirective(id);
+    assert.deepStrictEqual(d.decisions.map((e) => [e.decision, e.correction]), [['approve', false], ['reject', true]]);
+  });
+
+  released('an outcome stays private until a chair shares it', async () => {
+    const { Ana } = await people('Ana');
+    const id = await submitted(Ana);
+    await crisisPost('directive-decide', { id, decision: 'approve' });
+    await crisisPost('directive-outcome', { id, result: 'failed', text: 'Secret failure' });
+    let view = await me(Ana.token);
+    assert.strictEqual(view.directives[0].status, 'approved', 'an unshared result is not revealed by the status');
+    assert.ok(!JSON.stringify(view).includes('Secret failure'));
+    await crisisPost('directive-outcome', { id, result: 'partial', text: 'Told to the delegate', shared: true });
+    view = await me(Ana.token);
+    assert.strictEqual(view.directives[0].status, 'partial');
+    assert.strictEqual(view.directives[0].outcomes.length, 1);
+  });
+
+  released('the chairs control when directives can be sent', async () => {
+    const { Ana } = await people('Ana');
+    const rules = (s) => Object.assign(JSON.parse(JSON.stringify(rulesLib.DEFAULT_RULES)), { submission: s });
+    const { id } = (await asDelegate(Ana.token, 'draft-save', { title: 'T', fields: FIELDS })).json;
+    await crisisPost('rules-save', { rules: rules('closed') });
+    assert.strictEqual((await asDelegate(Ana.token, 'directive-submit', { id })).json.code, 'submissions_closed');
+    await crisisPost('rules-save', { rules: rules('unmoderated') });
+    assert.strictEqual((await asDelegate(Ana.token, 'directive-submit', { id })).json.code, 'submissions_closed');
+    await post('caucus', { type: 'unmoderated', totalMin: 5 });
+    await post('control', { op: 'start' });
+    assert.strictEqual((await asDelegate(Ana.token, 'directive-submit', { id })).statusCode, 200);
+  });
+
+  released('an update goes out only after approval, and only once', async () => {
+    await people('Ana');
+    const u = (await crisisPost('update-save', { headline: 'H', body: 'B' })).json.update;
+    assert.strictEqual((await crisisPost('update-publish', { id: u.id })).statusCode, 409);
+    await crisisPost('update-status', { id: u.id, status: 'approved' });
+    const both = await Promise.all([crisisPost('update-publish', { id: u.id }), crisisPost('update-publish', { id: u.id })]);
+    assert.deepStrictEqual(both.map((r) => r.statusCode).sort(), [200, 409]);
+    assert.strictEqual(kv.get('crisis:updates').size, 1);
+  });
+
+  released('approving a directive publishes nothing by itself', async () => {
+    const { Ana } = await people('Ana');
+    const id = await submitted(Ana);
+    await crisisPost('event-save', { title: 'Port falls', directiveIds: [id] });
+    await crisisPost('directive-decide', { id, decision: 'approve' });
+    assert.strictEqual(kv.has('crisis:updates'), false);
+    assert.deepStrictEqual((await projector()).updates, []);
+  });
+
+  released('faction and character updates reach only those people', async () => {
+    const { Ana, Ben, Cy } = await people('Ana', 'Ben', 'Cy');
+    await crisisPost('person-set', { id: Ana.id, faction: 'Red' });
+    await crisisPost('person-set', { id: Ben.id, faction: 'Blue' });
+    const f = await approvedUpdate({ headline: 'Red only', visibility: 'faction', factions: ['Red'] });
+    await crisisPost('update-publish', { id: f.id });
+    const c = await approvedUpdate({ headline: 'Cy only', visibility: 'character', delegateIds: [Cy.id] });
+    await crisisPost('update-publish', { id: c.id });
+    const seen = async (who) => (await me(who.token)).inbox.map((m) => m.subject);
+    assert.deepStrictEqual(await seen(Ana), ['Red only']);
+    assert.deepStrictEqual(await seen(Ben), []);
+    assert.deepStrictEqual(await seen(Cy), ['Cy only']);
+    assert.strictEqual(kv.has('crisis:updates'), false, 'nothing public');
+    assert.ok(!JSON.stringify(await projector()).includes('only'));
+  });
+
+  released('a chairs-only update reaches nobody', async () => {
+    const { Ana } = await people('Ana');
+    const u = await approvedUpdate({ visibility: 'chairs' });
+    await crisisPost('update-publish', { id: u.id });
+    assert.deepStrictEqual((await me(Ana.token)).inbox, []);
+    assert.strictEqual(kv.has('crisis:updates'), false);
+  });
+
+  released('private messages reach only their recipients, with read receipts', async () => {
+    const { Ana, Ben } = await people('Ana', 'Ben');
+    const m = (await crisisPost('message-send', { to: { ids: [Ana.id] }, subject: 'For Ana', body: 'Private' })).json.message;
+    assert.deepStrictEqual((await me(Ben.token)).inbox, []);
+    assert.strictEqual((await asDelegate(Ben.token, 'message-read', { id: m.id })).statusCode, 404, 'Ben cannot mark it read');
+    assert.strictEqual((await crisisState()).sent[0].readBy.length, 0);
+    await asDelegate(Ana.token, 'message-read', { id: m.id });
+    await asDelegate(Ana.token, 'message-read', { id: m.id });
+    assert.deepStrictEqual((await crisisState()).sent[0].readBy.map((r) => r.name), ['Ana']);
+    assert.strictEqual((await crisisPost('message-send', { to: {}, subject: 'S', body: 'B' })).json.code, 'no_recipients');
+    await crisisPost('message-send', { to: { all: true }, subject: 'Everyone', body: 'B' });
+    assert.strictEqual((await me(Ben.token)).inbox.length, 1);
+  });
+
+  released('taking a message back removes it but keeps the record', async () => {
+    const { Ana } = await people('Ana');
+    const m = (await crisisPost('message-send', { to: { ids: [Ana.id] }, subject: 'Oops', body: 'B' })).json.message;
+    assert.strictEqual((await crisisPost('message-retract', { id: m.id })).json.code, 'missing_reason');
+    await crisisPost('message-retract', { id: m.id, reason: 'Wrong person' });
+    assert.deepStrictEqual((await me(Ana.token)).inbox, []);
+    assert.strictEqual((await crisisState()).sent[0].retracted.reason, 'Wrong person');
+  });
+
+  released('the projector shows only public things', async () => {
+    const { Ana } = await people('Ana');
+    await crisisPost('note', { text: 'SECRETNOTE' });
+    await crisisPost('message-send', { to: { all: true }, subject: 'SECRETMSG', body: 'SECRETMSG' });
+    await crisisPost('update-save', { headline: 'SECRETDRAFT', body: 'SECRETDRAFT' });
+    await crisisPost('event-save', { title: 'SECRETEVENT', notes: 'SECRETEVENT' });
+    await crisisPost('countdown', { op: 'start', label: 'SECRETCOUNT', seconds: 60, public: false });
+    await crisisPost('vote-open', { question: 'SECRETVOTE', threshold: 'simple', public: false });
+    await submitted(Ana, 'SECRETDIRECTIVE');
+    const live = await post('caucus', { type: 'moderated', totalMin: 5, topic: 'SECRETTOPIC' });
+    assert.strictEqual(live.statusCode, 200);
+    assert.ok(!/SECRET/.test(JSON.stringify(await projector())), 'nothing private, and an idle caucus is hidden');
+    await post('control', { op: 'start' });
+    assert.strictEqual((await projector()).caucus.topic, 'SECRETTOPIC', 'a started caucus is public');
+  });
+
+  test('nothing posted reaches the projector before release', async () => {
+    await people('Ana');
+    process.env.RELEASE_AT = '2099-01-01T00:00:00Z';
+    try {
+      const u = await approvedUpdate({ headline: 'Too early' });
+      await crisisPost('update-publish', { id: u.id });
+      assert.deepStrictEqual((await projector()).updates, []);
+    } finally { delete process.env.RELEASE_AT; }
+  });
+
+  test('the countdown pauses, resumes and adds time from what was left', async () => {
+    await crisisPost('countdown', { op: 'start', label: 'D', seconds: 600 });
+    const paused = (await crisisPost('countdown', { op: 'pause' })).json.countdown;
+    assert.ok(paused.leftMs > 590000 && paused.leftMs <= 600000);
+    const longer = (await crisisPost('countdown', { op: 'extend', seconds: 60 })).json.countdown;
+    assert.strictEqual(longer.leftMs, paused.leftMs + 60000);
+    const running = (await crisisPost('countdown', { op: 'resume' })).json.countdown;
+    assert.ok(Date.parse(running.endsAt) - Date.now() > 640000);
+    assert.strictEqual((await crisisPost('countdown', { op: 'pause' })).statusCode, 200);
+    await crisisPost('countdown', { op: 'cancel' });
+    assert.strictEqual((await crisisPost('countdown', { op: 'pause' })).statusCode, 409);
+  });
+
+  released('the archive holds the record and is chairs only', async () => {
+    const { Ana } = await people('Ana');
+    await submitted(Ana, 'Archived order');
+    assert.strictEqual((await callCrisis({ method: 'GET', url: '/api/crisis?action=archive' })).statusCode, 401);
+    const a = (await callCrisis({ method: 'GET', url: '/api/crisis?action=archive', headers: admin() })).json;
+    assert.strictEqual(a.versions[0].title, 'Archived order');
+    assert.ok(a.log.some((e) => e.type === 'directive.submit'));
+  });
+
+  test('the delegate list is admin only', async () => {
+    assert.strictEqual((await call({ method: 'GET', url: '/api/committee?action=delegates' })).statusCode, 401);
+    assert.strictEqual((await call({ method: 'POST', url: '/api/committee?action=delegate', body: { op: 'add', names: ['X'] } })).statusCode, 401);
+  });
+
+  test('delegates can be added, renamed, marked and removed', async () => {
+    const add = await post('delegate', { op: 'add', names: ['France', 'Germany', 'france'] });
+    assert.deepStrictEqual(add.json.added, ['France', 'Germany']);
+    assert.deepStrictEqual(add.json.skipped, ['france']);
+    const [fr, de] = add.json.delegates;
+    assert.strictEqual(fr.present, true);
+    assert.strictEqual((await post('delegate', { op: 'update', id: de.id, name: 'FRANCE' })).statusCode, 409);
+    assert.strictEqual((await post('delegate', { op: 'update', id: de.id, name: ' ' })).statusCode, 400);
+    assert.strictEqual((await post('delegate', { op: 'update', id: 'nope', present: false })).statusCode, 404);
+    let list = (await post('delegate', { op: 'update', id: de.id, name: 'Deutschland', present: false })).json.delegates;
+    assert.deepStrictEqual(list.map((d) => [d.name, d.present]), [['Deutschland', false], ['France', true]]);
+    list = (await post('delegate', { op: 'all-present' })).json.delegates;
+    assert.ok(list.every((d) => d.present));
+    list = (await post('delegate', { op: 'remove', id: fr.id })).json.delegates;
+    assert.deepStrictEqual(list.map((d) => d.name), ['Deutschland']);
+  });
+
+  test('speeches are counted, and a new session resets the list', async () => {
+    await post('delegate', { op: 'add', names: ['A', 'B'] });
+    await running(['a', 'B', 'C']);                            // matched ignoring case; C has no entry
+    await post('control', { op: 'next' });
+    await post('control', { op: 'next' });
+    assert.deepStrictEqual((await delegateList()).map((d) => d.spoke), [1, 1]);
+    const list = (await post('delegate', { op: 'new-session' })).json.delegates;
+    assert.deepStrictEqual(list.map((d) => [d.present, d.spoke]), [[false, 0], [false, 0]]);
   });
 });
 

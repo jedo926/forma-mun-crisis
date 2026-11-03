@@ -225,7 +225,7 @@
 }
 .comm-state-bar {
   font-family: var(--px);
-  font-size: 8px;
+  font-size: 10px;
   color: var(--cyan);
   margin-bottom: 14px;
   min-height: 18px;
@@ -241,7 +241,7 @@
 }
 .comm-speaker-name {
   font-family: var(--px);
-  font-size: 8px;
+  font-size: 10px;
   color: #cfe8ff;
   flex: 1;
 }
@@ -260,7 +260,7 @@
 }
 .comm-dir-delegation {
   font-family: var(--px);
-  font-size: 8px;
+  font-size: 10px;
   color: var(--cyan);
 }
 .comm-dir-text {
@@ -273,3 +273,25 @@
 .num-xs {
   width: 60px;
 }
+
+/* ── Delegate desk ───────────────────────────────────────── */
+.desk-head { margin: 22px 0 10px; font-family: var(--px); font-size: 10px; color: var(--cyan); }
+.desk-card { padding: 12px 14px; margin: 10px 0; background: #0b0d1a; border: 1px solid var(--line); }
+.desk-card.unread { border-color: var(--magenta); }
+.desk-card summary { cursor: pointer; font-size: 20px; }
+.desk-meta { display: block; margin: 4px 0; font-size: 16px; color: var(--muted); }
+.desk-text { margin: 8px 0 0; font-size: 19px; line-height: 1.3; white-space: pre-wrap; overflow-wrap: anywhere; }
+.desk-status { font-family: var(--px); font-size: 9px; color: #ffd166; white-space: nowrap; }
+.desk-note { padding: 10px 12px; margin: 10px 0; border: 2px solid var(--cyan); font-size: 19px; }
+.desk-label { display: block; margin-top: 8px; font-family: var(--px); font-size: 9px; color: var(--muted); }
+
+/* ── Delegate desk ───────────────────────────────────────── */
+.desk-head { margin: 22px 0 10px; font-family: var(--px); font-size: 10px; color: var(--cyan); }
+.desk-card { padding: 12px 14px; margin: 10px 0; background: #0b0d1a; border: 1px solid var(--line); }
+.desk-card.unread { border-color: var(--magenta); }
+.desk-card summary { cursor: pointer; font-size: 20px; }
+.desk-meta { display: block; margin: 4px 0; font-size: 16px; color: var(--muted); }
+.desk-text { margin: 8px 0 0; font-size: 19px; line-height: 1.3; white-space: pre-wrap; overflow-wrap: anywhere; }
+.desk-status { font-family: var(--px); font-size: 9px; color: #ffd166; white-space: nowrap; }
+.desk-note { padding: 10px 12px; margin: 10px 0; border: 2px solid var(--cyan); font-size: 19px; }
+.desk-label { display: block; margin-top: 8px; font-family: var(--px); font-size: 9px; color: var(--muted); }

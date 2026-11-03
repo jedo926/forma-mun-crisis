@@ -20,6 +20,27 @@
   function abtn(label, onClick) {
     return h('button', { class: 'btn ed-add', type: 'button', onclick: onClick }, '+ ' + label);
   }
+  /** A plain action button. abtn is only for adding something, because it puts a + in front. */
+  function pbtn(label, onClick, cls) {
+    return h('button', { class: 'btn ' + (cls || ''), type: 'button', onclick: onClick }, label);
+  }
+  /**
+   * Names pasted from Excel, WhatsApp or Word. Several lines give one name each (the first real
+   * column when tabs are present); a single line is split on commas or semicolons. Numbers and
+   * bullets in front are dropped, and repeats are removed.
+   */
+  function parseNames(text) {
+    const lines = String(text || '').split(/\r?\n/).filter((l) => l.trim());
+    const firstCell = (l) => l.split('\t').find((c) => c.trim() && !/^\s*\d+[.)]?\s*$/.test(c)) || '';
+    const parts = lines.length > 1 ? lines.map(firstCell) : lines.flatMap((l) => l.split(/[\t,;]/));
+    const seen = new Set();
+    return parts.map((p) => p.replace(/^\s*(?:\d+[.):-]\s*|\d+\s+|[•·*–—-]\s*)/, '').trim().slice(0, 80)).filter((n) => {
+      const key = n.toLowerCase();
+      if (!n || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
   function tf(val, onInput, placeholder) {
     const el = h('input', Object.assign(fieldAttrs(), { class: 'input', type: 'text', placeholder: placeholder || '' }));
     el.value = val || '';
@@ -79,5 +100,5 @@
     return node;
   }
 
-  F.Admin.ui = { fieldAttrs, lbl, erow, efull, ecard, hint, esect, dbtn, abtn, tf, ta, dd, cpick, checkbox, paras, setOrClear, fold };
+  F.Admin.ui = { fieldAttrs, lbl, erow, efull, ecard, hint, esect, dbtn, abtn, pbtn, parseNames, tf, ta, dd, cpick, checkbox, paras, setOrClear, fold };
 })(window.FORMA = window.FORMA || {});
