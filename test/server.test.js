@@ -968,10 +968,12 @@ describe('committee handler — with KV', () => {
     assert.ok((await login(fresh)).json.token);
   });
 
-  released('too many wrong codes are locked out, even with the right code', async () => {
+  released('a room on one address survives typos, but constant guessing is locked out', async () => {
     await post('delegate', { op: 'add', names: ['Ana'] });
     const { code } = (await crisisPost('code-new', {})).json.codes[0];
     for (let i = 0; i < 10; i++) await login('NOPE', '9.9.9.9');
+    assert.ok((await login(code, '9.9.9.9')).json.token, 'ten typos in a room must not lock everyone out');
+    kv.set('crisis:os:fail:9.9.9.9', '200');
     assert.strictEqual((await login(code, '9.9.9.9')).statusCode, 429);
     assert.ok((await login(code, '8.8.8.8')).json.token, 'another device is unaffected');
   });

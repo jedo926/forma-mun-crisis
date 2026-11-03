@@ -48,6 +48,7 @@ Object.assign(process.env, {
 
 // ---- Fake Upstash REST ----
 const store = new Map();
+const expiries = new Map();
 http.createServer((req, res) => {
   let body = '';
   req.on('data', (c) => { body += c; });
@@ -60,7 +61,7 @@ http.createServer((req, res) => {
       else {
         store.set(key, rest[0]);
         result = 'OK';
-        if (rest[1] === 'NX' && rest[2] === 'PX') setTimeout(() => store.delete(key), rest[3]).unref();
+        if (rest[1] === 'NX' && rest[2] === 'PX') expiries.set(key, setTimeout(() => store.delete(key), rest[3]).unref());
       }
     }
     else if (cmd === 'INCR') { const n = Number(store.get(key) || 0) + 1; store.set(key, String(n)); result = n; }
@@ -71,7 +72,7 @@ http.createServer((req, res) => {
       const at = (i) => (i < 0 ? Math.max(0, l.length + i) : i);
       result = l.slice(at(rest[0]), rest[1] === -1 ? undefined : at(rest[1]) + 1);
     }
-    else if (cmd === 'DEL') result = store.delete(key) ? 1 : 0;
+    else if (cmd === 'DEL') { clearTimeout(expiries.get(key)); result = store.delete(key) ? 1 : 0; }
     else if (cmd === 'HSET') { const h = store.get(key) || new Map(); h.set(rest[0], rest[1]); store.set(key, h); result = 1; }
     else if (cmd === 'HDEL') { const h = store.get(key); result = h && h.delete(rest[0]) ? 1 : 0; }
     else if (cmd === 'HGET') { const h = store.get(key); result = h && h.has(rest[0]) ? h.get(rest[0]) : null; }

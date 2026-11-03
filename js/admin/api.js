@@ -27,6 +27,14 @@
     if (res.status === 401 && A.token() && A.logout) A.logout('SESSION EXPIRED · LOG IN AGAIN');
     return { res, data };
   }
+  /** A busy answer means nothing happened yet, so it is safe to quietly try again. */
+  async function retryBusy(send) {
+    for (let tries = 1; ; tries++) {
+      const r = await send();
+      if (!(r.data && r.data.code === 'busy') || tries >= 8) return r;
+      await new Promise((go) => setTimeout(go, 300 + Math.random() * 700));
+    }
+  }
   const postOpts = (body) => ({ init: { method: 'POST', body: JSON.stringify(body || {}) }, headers: { 'Content-Type': 'application/json' } });
 
   A.get = (action, opts) => call(CONFIG.adminEndpoint, action, opts);
@@ -35,9 +43,9 @@
   A.committeeDelegates = () => call(CONFIG.committeeEndpoint, 'delegates');
   // Every chair action says who did it, for the activity log.
   const signed = (body) => Object.assign({ actor: session.get('chairName', '') }, body);
-  A.committeePost = (action, body) => call(CONFIG.committeeEndpoint, action, postOpts(signed(body)));
+  A.committeePost = (action, body) => retryBusy(() => call(CONFIG.committeeEndpoint, action, postOpts(signed(body))));
   A.crisisGet = (action, opts) => call(CONFIG.crisisEndpoint, action, opts);
-  A.crisisPost = (action, body) => call(CONFIG.crisisEndpoint, action, postOpts(signed(body)));
+  A.crisisPost = (action, body) => retryBusy(() => call(CONFIG.crisisEndpoint, action, postOpts(signed(body))));
   A.login = (username, password) => call(CONFIG.adminEndpoint, 'login', postOpts({ username, password }));
 
   // Modules register here so one can react to another without importing it.

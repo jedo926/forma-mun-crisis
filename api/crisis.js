@@ -23,7 +23,7 @@ const DIR_KEY = 'crisis:directives:v2';
 const FEED_SIZE = 30;
 const OP_SECONDS = 3600;     // long enough to outlast any retry
 const DELEGATE_SESSION_MS = 12 * 60 * 60 * 1000;
-const MAX_LOGIN_FAILS = 10, LOGIN_WINDOW_S = 900;
+const MAX_LOGIN_FAILS = 200, LOGIN_WINDOW_S = 900;   // high because a whole room shares one address; 12-letter codes can't be guessed
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 const byTime = (key) => (a, b) => String(b[key] || '').localeCompare(String(a[key] || ''));

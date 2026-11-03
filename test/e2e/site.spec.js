@@ -607,6 +607,16 @@ test.describe('Crisis Room — a full session', () => {
     await expect(page.locator('[data-desk-msg]')).toHaveText('LOGIN OPENS AT RELEASE');
   });
 
+  test('a busy moment is retried for the chair without any fuss', async ({ page }) => {
+    await chair(page);
+    let calls = 0;
+    await page.route('**/api/crisis?action=note*', (route) => (calls++ ? route.continue()
+      : route.fulfill({ status: 409, contentType: 'application/json', body: '{"ok":false,"code":"busy"}' })));
+    const saved = await page.evaluate(() => window.FORMA.Admin.crisis.send('note', { text: 'Retry check' }));
+    expect(calls).toBe(2);
+    expect(saved.ok).toBe(true);
+  });
+
   test('the projector shows only public information', async ({ page, context }) => {
     await chair(page);
     await page.evaluate(() => window.FORMA.Admin.crisis.send('note', { text: 'PRIVATE CHAIR NOTE' }));

@@ -7,6 +7,7 @@
 
   const endpoint = CONFIG.crisisEndpoint;
   const POLL_MS = 10000;
+  const BUSY_TRIES = 8;
   const SAVE_MS = 1500;
   const FIELDS = [
     ['objective', 'OBJECTIVE', 'What should this achieve?', true], ['actions', 'REQUESTED ACTIONS', 'Exactly what should happen?', true],
@@ -29,7 +30,16 @@
   const opId = () => 'op' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
   const field = (attrs) => Object.assign({ autocomplete: 'off' }, attrs);
 
+  /** A busy answer means nothing happened yet, so it is safe to quietly try again. */
   async function call(action, post) {
+    for (let tries = 1; ; tries++) {
+      const r = await callOnce(action, post);
+      if (r.code !== 'busy' || tries >= BUSY_TRIES) return r;
+      await new Promise((go) => setTimeout(go, 400 + Math.random() * 1000));
+    }
+  }
+
+  async function callOnce(action, post) {
     const res = await fetch(`${endpoint}?action=${action}&t=${Date.now()}`, {
       method: post ? 'POST' : 'GET', cache: 'no-store',
       headers: Object.assign({ Accept: 'application/json' }, token() ? { Authorization: 'Bearer ' + token() } : {}, post ? { 'Content-Type': 'application/json' } : {}),
