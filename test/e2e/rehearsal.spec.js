@@ -66,10 +66,15 @@ test('one full session', async ({ browser }) => {
   });
 
   await test.step('a draft saves itself and survives a reload', async () => {
+    let saves = 0;
+    await ada.route('**/api/crisis?action=draft-save*', (route) => (saves++ ? route.continue()
+      : route.fulfill({ status: 409, contentType: 'application/json', body: '{"ok":false,"code":"busy"}' })));
     await ada.locator('[data-desk-new]').click();
     await ada.locator('#desk-title').fill('Secure the fictional harbour');
     await ada.locator('#desk-objective').fill('Keep trade moving');
     await expect(ada.locator('[data-desk-saved]')).toHaveText('SAVED', { timeout: 8000 });
+    expect(saves).toBeGreaterThan(1);   // the busy answer was retried without the delegate seeing it
+    await ada.unroute('**/api/crisis?action=draft-save*');
     await ada.reload();
     await ada.locator('[data-desk-edit="Secure the fictional harbour"]').click();
     await expect(ada.locator('#desk-objective')).toHaveValue('Keep trade moving');

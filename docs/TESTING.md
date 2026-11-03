@@ -116,3 +116,15 @@ Run on 25 Oct 2026 with Node 22 and headless Chromium (Playwright), against a lo
 - **Not checked:** the lock, log and login on real Upstash, because previews share production data. Check on a temporary separate Vercel project before relying on them.
 - **Not checked:** real phones, screen readers, printing the code cards on paper, and 30 delegates at once. The rehearsal used two delegates.
 - **Upstash command limit:** not confirmed. Neither the Vercel MCP nor the CLI could read the plan, so check it in the Upstash dashboard before the conference.
+
+## Crisis Room, a full room (3 Nov 2026)
+
+Local server only, fake storage slowed by 25 ms a command to act like a network, fictional names. One chair, one projector and 30 delegates: 6 real browsers (WebKit iPhone 13 and SE, Chromium Pixel 7 and Galaxy S9+, desktop) and 24 scripted delegates sending the same requests, because the test PC could not hold 30 browsers.
+
+- **Found and fixed:** 8 of 30 directives sent at the same moment were refused as busy; read receipts were lost the same way (13 of 30); ten wrong codes locked out everyone on the same internet address. Busy answers are now retried quietly, and the limit is 200 wrong codes in 15 minutes.
+- **After the fixes:** 30 of 30 logged in together; 30 of 30 autosaved; 30 of 30 sent on the first press, in 13 seconds; 30 unique directive numbers; a message reached everyone within 10 seconds; 30 of 30 read receipts; no delegate saw another's work; no sideways scrolling on any device; no page errors.
+- **Storage use:** 588 commands a minute (about 35,000 an hour) measured in a quiet room. A live caucus makes pages check more often, so expect roughly 70,000 an hour; that figure is worked out, not measured.
+- **Fake store bug fixed:** an old lock's timer could remove a newer lock, which real Redis does not do. It caused false duplicate directive numbers.
+- **Live site:** one save was checked on real storage: rules saved unchanged, three presses at once, one log line.
+- **Printed cards:** 30 cards fit on 2 A4 pages as a PDF, and a long name stays on its card. Not printed on paper.
+- **Not checked:** real phones, real Safari on iOS, 30 real browsers, delegate logins on real storage (refused until release), and screen readers.
